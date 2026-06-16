@@ -1,0 +1,1259 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🎨 Estúdio de Desenho - Manequim 3D</title>
+    <!-- Tailwind CSS para interface profissional -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { 
+            margin: 0; 
+            overflow: hidden; 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            background-color: #0f172a; 
+            user-select: none;
+        }
+        #canvas-container { 
+            width: 100vw; 
+            height: 100vh; 
+            display: block; 
+        }
+        /* Custom Scrollbar para os painéis de controle */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 10px;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 10px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(255, 255, 255, 0.4);
+        }
+    </style>
+    
+    <!-- Import Map para carregar o Three.js e seus addons de forma estável -->
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+                "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+            }
+        }
+    </script>
+</head>
+<body class="text-slate-200">
+
+    <!-- Interface Principal (Floating Glassmorphism Dashboard) -->
+    <div class="absolute top-4 left-4 z-10 w-80 max-h-[92vh] flex flex-col bg-slate-900/90 border border-slate-700/50 backdrop-blur-md rounded-2xl shadow-2xl overflow-hidden transition-all duration-300">
+        <!-- Header -->
+        <div class="p-4 bg-gradient-to-r from-blue-600 to-indigo-600 flex justify-between items-center">
+            <div>
+                <h1 class="text-lg font-extrabold tracking-wide flex items-center gap-2">
+                    <span>🎨 ARTSTUDIO 3D</span>
+                </h1>
+                <p class="text-xs text-blue-100 opacity-90">Manequim Proporcional Avançado</p>
+            </div>
+            <div class="bg-white/20 px-2 py-0.5 rounded text-[10px] font-bold">V2.0</div>
+        </div>
+
+        <!-- Tabs Navigation -->
+        <div class="flex border-b border-slate-700 bg-slate-950/40 text-xs">
+            <button id="tab-model" class="flex-1 py-2 text-center font-medium border-b-2 border-blue-500 text-blue-400 bg-slate-900/20 hover:bg-slate-800/30 transition-all">Modelo</button>
+            <button id="tab-pose" class="flex-1 py-2 text-center font-medium border-b-2 border-transparent text-slate-400 hover:text-slate-200 hover:bg-slate-800/30 transition-all">Poses & Câmera</button>
+            <button id="tab-scene" class="flex-1 py-2 text-center font-medium border-b-2 border-transparent text-slate-400 hover:text-slate-200 hover:bg-slate-800/30 transition-all">Cenário</button>
+        </div>
+
+        <!-- Tab Contents Container -->
+        <div class="p-4 flex-1 overflow-y-auto max-h-[60vh] space-y-4">
+            
+            <!-- SEÇÃO 1: MODELOS E MATERIAIS -->
+            <div id="content-model" class="space-y-4">
+                <div>
+                    <label class="text-xs font-semibold text-slate-400 uppercase tracking-wider block mb-2">Estrutura Anatômica</label>
+                    <div class="grid grid-cols-2 gap-2">
+                        <button id="model-standard" class="py-2 px-3 bg-blue-600 text-white rounded-lg text-xs font-semibold hover:bg-blue-500 transition border border-blue-400/30">Padrão</button>
+                        <button id="model-heroic" class="py-2 px-3 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-xs font-semibold transition border border-slate-700">Masculino/Hero</button>
+                        <button id="model-female" class="py-2 px-3 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-xs font-semibold transition border border-slate-700">Feminino</button>
+                        <button id="model-chibi" class="py-2 px-3 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-xs font-semibold transition border border-slate-700">Chibi/Anime</button>
+                    </div>
+                </div>
+
+                <div class="border-t border-slate-800 pt-3">
+                    <label class="text-xs font-semibold text-slate-400 uppercase tracking-wider block mb-2">Estilos de Material</label>
+                    <div class="grid grid-cols-2 gap-2">
+                        <button id="mat-wood" class="py-2 px-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-xs font-medium transition flex items-center gap-1.5 justify-center"><span class="w-3 h-3 rounded-full bg-[#d2b48c] block"></span> Madeira</button>
+                        <button id="mat-clay" class="py-2 px-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-xs font-medium transition flex items-center gap-1.5 justify-center"><span class="w-3 h-3 rounded-full bg-slate-400 block"></span> Argila Grey</button>
+                        <button id="mat-chrome" class="py-2 px-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-xs font-medium transition flex items-center gap-1.5 justify-center"><span class="w-3 h-3 rounded-full bg-slate-100 border border-slate-300 block"></span> Cromado</button>
+                        <button id="mat-neon" class="py-2 px-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-xs font-medium transition flex items-center gap-1.5 justify-center"><span class="w-3 h-3 rounded-full bg-cyan-400 block animate-pulse"></span> Neon Glass</button>
+                        <button id="mat-silhouette" class="py-2 px-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-xs font-medium transition flex items-center gap-1.5 justify-center col-span-2"><span class="w-3 h-3 rounded-full bg-black border border-slate-600 block"></span> Silhueta Negra (Estudo de Sombra)</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SEÇÃO 2: POSES & CÂMERA -->
+            <div id="content-pose" class="space-y-4 hidden">
+                <div>
+                    <label class="text-xs font-semibold text-slate-400 uppercase tracking-wider block mb-2">Biblioteca de Poses</label>
+                    <div class="grid grid-cols-2 gap-2">
+                        <button id="pose-t" class="py-1.5 px-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-xs font-medium transition">Pose Padrão</button>
+                        <button id="pose-running" class="py-1.5 px-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-xs font-medium transition">Corrida</button>
+                        <button id="pose-heroic" class="py-1.5 px-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-xs font-medium transition">Pouso Herói</button>
+                        <button id="pose-meditate" class="py-1.5 px-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-xs font-medium transition">Meditação Zen</button>
+                        <button id="pose-combat" class="py-1.5 px-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-xs font-medium transition">Combate</button>
+                        <button id="pose-flying" class="py-1.5 px-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-xs font-medium transition">Voo Estilizado</button>
+                    </div>
+                </div>
+
+                <div class="border-t border-slate-800 pt-3">
+                    <label class="text-xs font-semibold text-slate-400 uppercase tracking-wider block mb-2">Ângulos de Referência</label>
+                    <div class="grid grid-cols-3 gap-1">
+                        <button id="cam-front" class="py-1 px-1 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded text-[11px] font-medium transition">Frente</button>
+                        <button id="cam-side" class="py-1 px-1 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded text-[11px] font-medium transition">Perfil</button>
+                        <button id="cam-back" class="py-1 px-1 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded text-[11px] font-medium transition">Costas</button>
+                        <button id="cam-top" class="py-1 px-1 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded text-[11px] font-medium transition">Topo</button>
+                        <button id="cam-iso" class="py-1 px-1 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded text-[11px] font-medium transition col-span-2">Perspectiva</button>
+                    </div>
+                </div>
+
+                <div class="border-t border-slate-800 pt-3">
+                    <label class="text-xs font-semibold text-slate-400 uppercase tracking-wider block mb-2">Ajuste de Articulação</label>
+                    <div class="flex items-center gap-2">
+                        <button id="control-rotate" class="flex-1 py-1.5 bg-blue-600 text-white rounded text-xs font-semibold">Rotacionar</button>
+                        <button id="control-translate" class="flex-1 py-1.5 bg-slate-800 text-slate-400 hover:text-slate-200 rounded text-xs font-medium" title="Permite mover o quadril livremente no espaço">Mover Quadril</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SEÇÃO 3: SCENE CONFIG (CENÁRIO) -->
+            <div id="content-scene" class="space-y-4 hidden">
+                <div>
+                    <label class="text-xs font-semibold text-slate-400 uppercase tracking-wider block mb-1">Rotação do Sol / Sombra</label>
+                    <div class="flex items-center gap-2">
+                        <input id="sun-orbit" type="range" min="0" max="360" value="45" class="w-full accent-blue-500 bg-slate-800 rounded">
+                        <span id="sun-val" class="text-xs font-mono w-8 text-right">45°</span>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="text-xs font-semibold text-slate-400 uppercase tracking-wider block mb-1">Brilho da Luz Principal</label>
+                    <input id="sun-intensity" type="range" min="0" max="250" value="120" class="w-full accent-blue-500 bg-slate-800 rounded">
+                </div>
+
+                <div>
+                    <label class="text-xs font-semibold text-slate-400 uppercase tracking-wider block mb-1">Intensidade do Ambiente</label>
+                    <input id="ambient-intensity" type="range" min="0" max="150" value="60" class="w-full accent-blue-500 bg-slate-800 rounded">
+                </div>
+
+                <div class="border-t border-slate-800 pt-3 space-y-2">
+                    <div class="flex justify-between items-center">
+                        <span class="text-xs font-medium text-slate-400">Mostrar Grade do Chão</span>
+                        <input id="toggle-grid" type="checkbox" checked class="w-4 h-4 rounded text-blue-600 bg-slate-800 border-slate-700">
+                    </div>
+                    <div class="flex justify-between items-center">
+                        <span class="text-xs font-medium text-slate-400">Visualizar Sombras</span>
+                        <input id="toggle-shadow" type="checkbox" checked class="w-4 h-4 rounded text-blue-600 bg-slate-800 border-slate-700">
+                    </div>
+                    <div class="flex justify-between items-center">
+                        <span class="text-xs font-medium text-slate-400">Plano de Fundo Escuro</span>
+                        <input id="toggle-dark-bg" type="checkbox" class="w-4 h-4 rounded text-blue-600 bg-slate-800 border-slate-700">
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- Selected Element Display and Action Bar -->
+        <div class="p-4 bg-slate-950/70 border-t border-slate-800 text-center space-y-3">
+            <div id="selected-info" class="text-xs font-semibold text-indigo-400 truncate bg-slate-900/50 py-1.5 px-2 rounded-lg border border-slate-800">
+                Selecione uma articulação (esferas)
+            </div>
+            
+            <div class="flex gap-2">
+                <button id="save-pose-btn" class="flex-1 py-2 bg-slate-800 hover:bg-slate-700 text-white rounded-lg text-xs font-semibold transition flex items-center justify-center gap-1">💾 Exportar</button>
+                <button id="load-pose-btn" class="flex-1 py-2 bg-slate-800 hover:bg-slate-700 text-white rounded-lg text-xs font-semibold transition flex items-center justify-center gap-1">📂 Importar</button>
+            </div>
+            <input type="file" id="pose-file-input" class="hidden" accept=".json">
+
+            <button id="screenshot-btn" class="w-full py-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white rounded-lg text-xs font-bold transition shadow-lg shadow-emerald-950/40 flex items-center justify-center gap-1.5">
+                📸 Capturar Referência (PNG)
+            </button>
+        </div>
+    </div>
+
+    <!-- Barra de Controle Rápido inferior e Legenda flutuante -->
+    <div class="absolute bottom-6 right-6 z-10 bg-slate-900/90 border border-slate-700/50 backdrop-blur-md px-4 py-3 rounded-xl shadow-2xl flex gap-3 text-xs items-center">
+        <span class="text-slate-400 font-medium">Atalhos rápidos:</span>
+        <button id="quick-reset" class="bg-red-950/50 hover:bg-red-900/60 text-red-300 border border-red-800/50 py-1 px-3 rounded font-bold transition">Limpar Pose</button>
+        <button id="quick-deselect" class="bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 py-1 px-3 rounded font-bold transition">Deselecionar</button>
+    </div>
+
+    <div id="canvas-container"></div>
+
+    <script type="module">
+        import * as THREE from 'three';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+        import { TransformControls } from 'three/addons/controls/TransformControls.js';
+
+        // --- 1. Configuração da Cena ---
+        const container = document.getElementById('canvas-container');
+        const scene = new THREE.Scene();
+        
+        // Cores de fundo (Modo estúdio claro padrão vs Modo estúdio escuro)
+        const lightBg = new THREE.Color(0xe2e8f0);
+        const darkBg = new THREE.Color(0x0f172a);
+        
+        scene.background = lightBg;
+        scene.fog = new THREE.Fog(0xe2e8f0, 25, 120);
+
+        const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
+        camera.position.set(0, 12, 28);
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true }); // Permite tirar capturas de tela limpas
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.shadowMap.enabled = true;
+        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        renderer.toneMapping = THREE.ACESFilmicToneMapping;
+        renderer.toneMappingExposure = 1.0;
+        container.appendChild(renderer.domElement);
+
+        // --- 2. Iluminação do Estúdio ---
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+        scene.add(ambientLight);
+
+        // Luz Direcional Principal (Simulador de Sol/Foco)
+        const dirLight = new THREE.DirectionalLight(0xffffff, 1.2);
+        dirLight.position.set(12, 18, 12);
+        dirLight.castShadow = true;
+        dirLight.shadow.mapSize.width = 2048;
+        dirLight.shadow.mapSize.height = 2048;
+        dirLight.shadow.camera.near = 0.5;
+        dirLight.shadow.camera.far = 60;
+        dirLight.shadow.camera.left = -18;
+        dirLight.shadow.camera.right = 18;
+        dirLight.shadow.camera.top = 18;
+        dirLight.shadow.camera.bottom = -18;
+        dirLight.shadow.bias = -0.0005;
+        scene.add(dirLight);
+
+        // Luzes de preenchimento coloridas para profundidade artística
+        const rimLight = new THREE.DirectionalLight(0x3b82f6, 0.4); // Rim light azulada lateral
+        rimLight.position.set(-15, 10, -10);
+        scene.add(rimLight);
+
+        const bounceLight = new THREE.DirectionalLight(0xf43f5e, 0.25); // Luz de rebatimento rosa
+        bounceLight.position.set(0, -5, 10);
+        scene.add(bounceLight);
+
+        // --- 3. Cenário e Auxiliares ---
+        const planeGeometry = new THREE.PlaneGeometry(200, 200);
+        const planeMaterial = new THREE.ShadowMaterial({ opacity: 0.18 });
+        const floorPlane = new THREE.Mesh(planeGeometry, planeMaterial);
+        floorPlane.rotation.x = -Math.PI / 2;
+        floorPlane.position.y = 0;
+        floorPlane.receiveShadow = true;
+        scene.add(floorPlane);
+
+        const gridHelper = new THREE.GridHelper(100, 60, 0x94a3b8, 0xcbd5e1);
+        scene.add(gridHelper);
+
+        // --- 4. Materiais Disponíveis ---
+        const materials = {
+            wood: new THREE.MeshStandardMaterial({ 
+                color: 0xd2b48c, 
+                roughness: 0.6, 
+                metalness: 0.05,
+                name: "wood"
+            }),
+            woodJoint: new THREE.MeshStandardMaterial({ 
+                color: 0xc4a473, 
+                roughness: 0.7, 
+                metalness: 0.05,
+                name: "woodJoint"
+            }),
+            clay: new THREE.MeshStandardMaterial({ 
+                color: 0x94a3b8, 
+                roughness: 0.9, 
+                metalness: 0.0,
+                name: "clay"
+            }),
+            clayJoint: new THREE.MeshStandardMaterial({ 
+                color: 0x64748b, 
+                roughness: 0.95, 
+                metalness: 0.0,
+                name: "clayJoint"
+            }),
+            chrome: new THREE.MeshStandardMaterial({ 
+                color: 0xf1f5f9, 
+                roughness: 0.1, 
+                metalness: 0.95,
+                name: "chrome"
+            }),
+            chromeJoint: new THREE.MeshStandardMaterial({ 
+                color: 0xcbd5e1, 
+                roughness: 0.2, 
+                metalness: 0.9,
+                name: "chromeJoint"
+            }),
+            neon: new THREE.MeshPhysicalMaterial({ 
+                color: 0x06b6d4, 
+                roughness: 0.2, 
+                metalness: 0.1,
+                transmission: 0.6,
+                thickness: 1.0,
+                emissive: 0x0891b2,
+                emissiveIntensity: 0.3,
+                name: "neon"
+            }),
+            neonJoint: new THREE.MeshPhysicalMaterial({ 
+                color: 0x0891b2, 
+                roughness: 0.3, 
+                metalness: 0.1,
+                transmission: 0.3,
+                thickness: 0.8,
+                emissive: 0x0e7490,
+                emissiveIntensity: 0.6,
+                name: "neonJoint"
+            }),
+            silhouette: new THREE.MeshBasicMaterial({ 
+                color: 0x020617,
+                name: "silhouette"
+            }),
+            silhouetteJoint: new THREE.MeshBasicMaterial({ 
+                color: 0x0f172a,
+                name: "silhouetteJoint"
+            })
+        };
+
+        // Material ativo inicial
+        let currentBodyMat = materials.wood;
+        let currentJointMat = materials.woodJoint;
+
+        // --- 5. Criação do Manequim Paramétrico ---
+        const mannequin = new THREE.Group();
+        scene.add(mannequin);
+
+        // Armazenamento das articulações para animação/interpolação
+        const jointsMap = {};
+
+        // Criação de membros volumétricos articulados com pivô correto na base
+        function createMannequinLimb(name, radiusTop, radiusBottom, height, isUpward = false) {
+            const group = new THREE.Group();
+            group.name = name;
+            
+            // Cilindro do membro principal
+            const cylinderGeo = new THREE.CylinderGeometry(radiusTop, radiusBottom, height, 16);
+            const mesh = new THREE.Mesh(cylinderGeo, currentBodyMat);
+            mesh.castShadow = true;
+            mesh.receiveShadow = true;
+            mesh.userData.isLimbMesh = true; // Flag para atualizar materiais dinamicamente
+            
+            // Posiciona a malha para que o pivô de rotação do grupo fique na articulação/borda
+            mesh.position.y = isUpward ? height / 2 : -height / 2;
+            group.add(mesh);
+            
+            // Esfera de articulação (visual e coletor de cliques do Raycaster)
+            const jointGeo = new THREE.SphereGeometry(Math.max(radiusTop, radiusBottom) * 1.15, 16, 16);
+            const jointMesh = new THREE.Mesh(jointGeo, currentJointMat);
+            jointMesh.castShadow = true;
+            jointMesh.receiveShadow = true;
+            jointMesh.userData.isJointMesh = true;
+            group.add(jointMesh);
+
+            // Guardamos no mapa global
+            jointsMap[name] = group;
+            
+            return group;
+        }
+
+        // Configuração das Proporções (Tipos de Corpo)
+        const bodyTypes = {
+            standard: {
+                hipsW: 1.6, hipsH: 1.1,
+                spineW: 1.2, spineH: 3.8,
+                chestW: 1.8, chestH: 3.4,
+                neckW: 0.8, neckH: 1.4,
+                headSize: 1.2,
+                shoulderPos: 2.1,
+                upperArmW: 0.9, upperArmH: 3.2,
+                lowerArmW: 0.8, lowerArmH: 3.0,
+                handSize: 0.75,
+                hipPos: 1.0,
+                upperLegW: 1.1, upperLegH: 4.8,
+                lowerLegW: 0.9, lowerLegH: 4.6,
+                footSize: {w: 1.1, h: 0.5, d: 2.0}
+            },
+            heroic: {
+                hipsW: 1.7, hipsH: 1.1,
+                spineW: 1.1, spineH: 4.2,
+                chestW: 2.4, chestH: 4.0, // Peito muito mais largo
+                neckW: 0.9, neckH: 1.3,
+                headSize: 1.1, // Cabeça menor proporcionalmente
+                shoulderPos: 2.7, // Ombros mais distantes
+                upperArmW: 1.2, upperArmH: 3.5, // Braços robustos
+                lowerArmW: 1.0, lowerArmH: 3.2,
+                handSize: 0.85,
+                hipPos: 1.1,
+                upperLegW: 1.4, upperLegH: 5.2, // Coxas largas
+                lowerLegW: 1.0, lowerLegH: 4.8,
+                footSize: {w: 1.3, h: 0.6, d: 2.3}
+            },
+            female: {
+                hipsW: 1.8, hipsH: 1.1, // Quadril levemente mais largo relativo aos ombros
+                spineW: 0.9, spineH: 3.6, // Cintura fina
+                chestW: 1.5, chestH: 3.1, // Ombros/Busto mais estreitos
+                neckW: 0.7, neckH: 1.3,
+                headSize: 1.25,
+                shoulderPos: 1.7,
+                upperArmW: 0.75, upperArmH: 3.0,
+                lowerArmW: 0.65, lowerArmH: 2.8,
+                handSize: 0.7,
+                hipPos: 1.0,
+                upperLegW: 1.0, upperLegH: 4.6,
+                lowerLegW: 0.8, lowerLegH: 4.4,
+                footSize: {w: 0.9, h: 0.4, d: 1.8}
+            },
+            chibi: {
+                hipsW: 1.4, hipsH: 0.9,
+                spineW: 1.1, spineH: 1.8, // Tronco muito curto
+                chestW: 1.3, chestH: 1.6,
+                neckW: 0.8, neckH: 0.8,
+                headSize: 2.1, // Cabeça gigantesca clássica de chibi/anime
+                shoulderPos: 1.4,
+                upperArmW: 0.8, upperArmH: 1.6,
+                lowerArmW: 0.7, lowerArmH: 1.4,
+                handSize: 0.7,
+                hipPos: 0.7,
+                upperLegW: 0.9, upperLegH: 2.0,
+                lowerLegW: 0.8, lowerLegH: 1.8,
+                footSize: {w: 0.9, h: 0.4, d: 1.4}
+            }
+        };
+
+        let currentBodyType = "standard";
+
+        // Montagem do Esqueleto do Manequim
+        function buildMannequin() {
+            // Limpa o grupo existente se houver
+            while(mannequin.children.length > 0) { 
+                mannequin.remove(mannequin.children[0]); 
+            }
+            
+            const p = bodyTypes[currentBodyType];
+
+            // 1. Quadril (Root)
+            const hips = createMannequinLimb("Hips", p.hipsW * 0.9, p.hipsW, p.hipsH, true);
+            hips.position.y = (currentBodyType === 'chibi') ? 5.5 : 10.5;
+            mannequin.add(hips);
+
+            // 2. Coluna (Spine)
+            const spine = createMannequinLimb("Spine", p.spineW * 0.85, p.spineW, p.spineH, true);
+            spine.position.y = p.hipsH * 0.5;
+            hips.add(spine);
+
+            // 3. Peito (Chest)
+            const chest = createMannequinLimb("Chest", p.chestW * 0.9, p.chestW, p.chestH, true);
+            chest.position.y = p.spineH;
+            spine.add(chest);
+
+            // 4. Pescoço (Neck)
+            const neck = createMannequinLimb("Neck", p.neckW * 0.9, p.neckW, p.neckH, true);
+            neck.position.y = p.chestH;
+            chest.add(neck);
+
+            // 5. Cabeça (Head)
+            const headGroup = new THREE.Group();
+            headGroup.name = "Head";
+            headGroup.position.y = p.neckH;
+            neck.add(headGroup);
+            
+            const headMesh = new THREE.Mesh(new THREE.SphereGeometry(p.headSize, 18, 18), currentBodyMat);
+            headMesh.position.y = p.headSize * 1.0;
+            headMesh.castShadow = true;
+            headMesh.receiveShadow = true;
+            headMesh.userData.isLimbMesh = true;
+            headGroup.add(headMesh);
+            
+            // Detalhe visual na cabeça (ajuda a ver a direção do olhar)
+            const noseGeo = new THREE.ConeGeometry(p.headSize * 0.2, p.headSize * 0.5, 4);
+            const noseMesh = new THREE.Mesh(noseGeo, currentBodyMat);
+            noseMesh.rotation.x = Math.PI / 2;
+            noseMesh.position.set(0, p.headSize * 0.9, p.headSize * 0.9);
+            noseMesh.userData.isLimbMesh = true;
+            headGroup.add(noseMesh);
+
+            jointsMap["Head"] = headGroup;
+
+            // Função para estruturar braço
+            const createArm = (side) => {
+                const isLeft = side === "Left";
+                const shoulder = new THREE.Group();
+                shoulder.name = side + "Shoulder";
+                shoulder.position.set(isLeft ? -p.shoulderPos : p.shoulderPos, p.chestH * 0.85, 0);
+                chest.add(shoulder);
+                jointsMap[shoulder.name] = shoulder;
+
+                const upperArm = createMannequinLimb(side + "UpperArm", p.upperArmW * 0.85, p.upperArmW, p.upperArmH, false);
+                shoulder.add(upperArm);
+
+                const elbow = new THREE.Group();
+                elbow.name = side + "Elbow";
+                elbow.position.y = -p.upperArmH;
+                upperArm.add(elbow);
+                jointsMap[elbow.name] = elbow;
+
+                const lowerArm = createMannequinLimb(side + "LowerArm", p.lowerArmW * 0.85, p.lowerArmW, p.lowerArmH, false);
+                elbow.add(lowerArm);
+
+                const hand = new THREE.Group();
+                hand.name = side + "Hand";
+                hand.position.y = -p.lowerArmH;
+                lowerArm.add(hand);
+                
+                const handMesh = new THREE.Mesh(new THREE.SphereGeometry(p.handSize, 12, 12), currentBodyMat);
+                handMesh.castShadow = true;
+                handMesh.userData.isLimbMesh = true;
+                hand.add(handMesh);
+                jointsMap[hand.name] = hand;
+            };
+
+            createArm("Left");
+            createArm("Right");
+
+            // Função para estruturar perna
+            const createLeg = (side) => {
+                const isLeft = side === "Left";
+                const hipJoint = new THREE.Group();
+                hipJoint.name = side + "HipJoint";
+                hipJoint.position.set(isLeft ? -p.hipPos : p.hipPos, -p.hipsH * 0.4, 0);
+                hips.add(hipJoint);
+                jointsMap[hipJoint.name] = hipJoint;
+
+                const upperLeg = createMannequinLimb(side + "UpperLeg", p.upperLegW * 0.85, p.upperLegW, p.upperLegH, false);
+                hipJoint.add(upperLeg);
+
+                const knee = new THREE.Group();
+                knee.name = side + "Knee";
+                knee.position.y = -p.upperLegH;
+                upperLeg.add(knee);
+                jointsMap[knee.name] = knee;
+
+                const lowerLeg = createMannequinLimb(side + "LowerLeg", p.lowerLegW * 0.85, p.lowerLegW, p.lowerLegH, false);
+                knee.add(lowerLeg);
+
+                const foot = new THREE.Group();
+                foot.name = side + "Foot";
+                foot.position.y = -p.lowerLegH;
+                lowerLeg.add(foot);
+                
+                const footMesh = new THREE.Mesh(new THREE.BoxGeometry(p.footSize.w, p.footSize.h, p.footSize.d), currentBodyMat);
+                footMesh.position.set(0, -p.footSize.h / 2, p.footSize.d * 0.35); // Aponta o pé para a frente
+                footMesh.castShadow = true;
+                footMesh.receiveShadow = true;
+                footMesh.userData.isLimbMesh = true;
+                foot.add(footMesh);
+                jointsMap[foot.name] = foot;
+            };
+
+            createLeg("Left");
+            createLeg("Right");
+
+            // Define pose inicial relaxada (Leve A-Pose melhorada para evitar clipping)
+            jointsMap["LeftShoulder"].rotation.z = 0.55; 
+            jointsMap["RightShoulder"].rotation.z = -0.55;
+            jointsMap["LeftHipJoint"].rotation.z = 0.08;
+            jointsMap["RightHipJoint"].rotation.z = -0.08;
+        }
+
+        // Inicia montagem do boneco
+        buildMannequin();
+
+        // Configuração dos Poses
+        const poses = {
+            tPose: {
+                Hips: { rot: [0, 0, 0], pos: [0, 10.5, 0] },
+                Spine: { rot: [0, 0, 0] },
+                Chest: { rot: [0, 0, 0] },
+                Neck: { rot: [0, 0, 0] },
+                Head: { rot: [0, 0, 0] },
+                LeftShoulder: { rot: [0, 0, 1.57] },
+                LeftElbow: { rot: [0, 0, 0] },
+                LeftHand: { rot: [0, 0, 0] },
+                RightShoulder: { rot: [0, 0, -1.57] },
+                RightElbow: { rot: [0, 0, 0] },
+                RightHand: { rot: [0, 0, 0] },
+                LeftHipJoint: { rot: [0, 0, 0] },
+                LeftKnee: { rot: [0, 0, 0] },
+                LeftFoot: { rot: [0, 0, 0] },
+                RightHipJoint: { rot: [0, 0, 0] },
+                RightKnee: { rot: [0, 0, 0] },
+                RightFoot: { rot: [0, 0, 0] }
+            },
+            default: {
+                Hips: { rot: [0, 0, 0], pos: [0, 10.5, 0] },
+                Spine: { rot: [0.05, 0, 0] },
+                Chest: { rot: [0, 0, 0] },
+                Neck: { rot: [0, 0, 0] },
+                Head: { rot: [0, 0, 0] },
+                // Braços mais abertos para evitar clipping
+                LeftShoulder: { rot: [0, 0, 0.6] }, 
+                LeftElbow: { rot: [0.15, 0, 0] },
+                LeftHand: { rot: [0, 0, 0] },
+                RightShoulder: { rot: [0, 0, -0.6] },
+                RightElbow: { rot: [0.15, 0, 0] },
+                RightHand: { rot: [0, 0, 0] },
+                LeftHipJoint: { rot: [0, 0, 0.08] },
+                LeftKnee: { rot: [0, 0, 0] },
+                LeftFoot: { rot: [0, 0, 0] },
+                RightHipJoint: { rot: [0, 0, -0.08] },
+                RightKnee: { rot: [0, 0, 0] },
+                RightFoot: { rot: [0, 0, 0] }
+            },
+            running: {
+                Hips: { rot: [0, -0.2, 0], pos: [0, 9.8, 0] },
+                Spine: { rot: [0.3, 0.1, -0.1] },
+                Chest: { rot: [0.1, -0.2, 0] },
+                Neck: { rot: [-0.2, 0.1, 0] },
+                Head: { rot: [0.1, 0.2, 0] },
+                // Braço esquerdo para a frente
+                LeftShoulder: { rot: [-0.8, 0, 0.3] },
+                LeftElbow: { rot: [-1.4, 0, 0] },
+                LeftHand: { rot: [0, 0, 0] },
+                // Braço direito bem para trás
+                RightShoulder: { rot: [0.8, 0, -0.3] },
+                RightElbow: { rot: [-1.2, 0, 0] },
+                RightHand: { rot: [0, 0, 0] },
+                // Perna esquerda à frente e dobrada
+                LeftHipJoint: { rot: [-0.9, 0, 0.1] },
+                LeftKnee: { rot: [-1.1, 0, 0] },
+                LeftFoot: { rot: [0.2, 0, 0] },
+                // Perna direita atrás, flexionada
+                RightHipJoint: { rot: [0.8, 0, -0.1] },
+                RightKnee: { rot: [-1.4, 0, 0] },
+                RightFoot: { rot: [0.5, 0, 0] }
+            },
+            heroic: {
+                Hips: { rot: [0, 0.3, 0], pos: [0, 3.8, 0] }, // Hips muito baixos (agachado)
+                Spine: { rot: [0.8, -0.2, 0] },
+                Chest: { rot: [0.4, 0.1, 0] },
+                Neck: { rot: [-0.6, 0.1, 0] },
+                Head: { rot: [-0.3, -0.1, 0] },
+                // Braço esquerdo apoiado no chão
+                LeftShoulder: { rot: [-1.2, 0.4, 0.4] },
+                LeftElbow: { rot: [-0.7, 0, 0] },
+                LeftHand: { rot: [0, 0, 0] },
+                // Braço direito recuado
+                RightShoulder: { rot: [0.4, -0.5, -0.5] },
+                RightElbow: { rot: [-1.6, 0, 0] },
+                RightHand: { rot: [0, 0, 0] },
+                // Perna esquerda flexionada sob o corpo
+                LeftHipJoint: { rot: [-1.4, 0.5, 0.3] },
+                LeftKnee: { rot: [-1.6, 0, 0] },
+                LeftFoot: { rot: [0.4, 0, 0] },
+                // Perna direita estendida para trás e lado
+                RightHipJoint: { rot: [-0.4, -0.6, -0.8] },
+                RightKnee: { rot: [-0.8, 0, 0] },
+                RightFoot: { rot: [0.2, 0, 0] }
+            },
+            meditate: {
+                Hips: { rot: [0, 0, 0], pos: [0, 1.4, 0] }, // Sentado no chão
+                Spine: { rot: [-0.05, 0, 0] },
+                Chest: { rot: [0.05, 0, 0] },
+                Neck: { rot: [0.05, 0, 0] },
+                Head: { rot: [0, 0, 0] },
+                // Mãos repousando sobre os joelhos
+                LeftShoulder: { rot: [0.2, 0.2, 0.5] },
+                LeftElbow: { rot: [-1.5, 0.3, 0] },
+                LeftHand: { rot: [0.3, 0, 0.2] },
+                RightShoulder: { rot: [0.2, -0.2, -0.5] },
+                RightElbow: { rot: [-1.5, -0.3, 0] },
+                RightHand: { rot: [0.3, 0, -0.2] },
+                // Pernas dobradas (índio)
+                LeftHipJoint: { rot: [-1.2, 1.0, 0.6] },
+                LeftKnee: { rot: [-1.6, 0, 0] },
+                LeftFoot: { rot: [0, 0, 0] },
+                RightHipJoint: { rot: [-1.2, -1.0, -0.6] },
+                RightKnee: { rot: [-1.6, 0, 0] },
+                RightFoot: { rot: [0, 0, 0] }
+            },
+            combat: {
+                Hips: { rot: [0, 0.6, 0], pos: [0, 9.2, 0] }, // Agachado levemente de perfil
+                Spine: { rot: [0.2, -0.1, 0] },
+                Chest: { rot: [0.1, -0.2, 0] },
+                Neck: { rot: [-0.1, -0.1, 0] },
+                Head: { rot: [0.1, -0.2, 0] },
+                // Guarda de boxe (Punho esquerdo frente, punho direito protege o queixo)
+                LeftShoulder: { rot: [-0.5, 0.5, 0.3] },
+                LeftElbow: { rot: [-1.6, 0.2, 0] },
+                LeftHand: { rot: [0, 0, 0] },
+                RightShoulder: { rot: [-0.3, -0.3, -0.3] },
+                RightElbow: { rot: [-1.8, -0.1, 0] },
+                RightHand: { rot: [0, 0, 0] },
+                // Pernas separadas em guarda
+                LeftHipJoint: { rot: [-0.4, 0.4, 0.2] },
+                LeftKnee: { rot: [-0.7, 0, 0] },
+                LeftFoot: { rot: [0.2, 0, 0] },
+                RightHipJoint: { rot: [0.4, -0.4, -0.2] },
+                RightKnee: { rot: [-0.7, 0, 0] },
+                RightFoot: { rot: [0.2, 0, 0] }
+            },
+            flying: {
+                Hips: { rot: [0.3, 0, 0], pos: [0, 11, 0] },
+                Spine: { rot: [0.2, 0, 0] },
+                Chest: { rot: [0.1, 0, 0] },
+                Neck: { rot: [0.2, 0, 0] },
+                Head: { rot: [0, 0, 0] },
+                LeftShoulder: { rot: [-1.2, 0, 0] },
+                LeftElbow: { rot: [-0.5, 0, 0] },
+                LeftHand: { rot: [0, 0, 0] },
+                RightShoulder: { rot: [-1.2, 0, 0] },
+                RightElbow: { rot: [-0.5, 0, 0] },
+                RightHand: { rot: [0, 0, 0] },
+                LeftHipJoint: { rot: [0.1, 0, 0] },
+                LeftKnee: { rot: [-0.2, 0, 0] },
+                LeftFoot: { rot: [0, 0, 0] },
+                RightHipJoint: { rot: [0.1, 0, 0] },
+                RightKnee: { rot: [-0.2, 0, 0] },
+                RightFoot: { rot: [0, 0, 0] }
+            }
+        };
+
+        // Função auxiliar para capturar o estado atual da pose
+        function captureCurrentPose() {
+            const currentPose = {};
+            Object.keys(jointsMap).forEach(key => {
+                const joint = jointsMap[key];
+                currentPose[key] = {
+                    rot: [joint.rotation.x, joint.rotation.y, joint.rotation.z],
+                    pos: (key === "Hips") ? [joint.position.x, joint.position.y, joint.position.z] : null
+                };
+            });
+            return currentPose;
+        }
+
+        // Função para aplicar um pose capturada ao modelo atual
+        function applySavedPose(poseData) {
+            Object.keys(poseData).forEach(jointName => {
+                const joint = jointsMap[jointName];
+                const saved = poseData[jointName];
+                if (joint) {
+                    joint.rotation.set(...saved.rot);
+                    if (jointName === "Hips" && saved.pos) {
+                        joint.position.set(...saved.pos);
+                    }
+                }
+            });
+        }
+
+        // Gerenciamento de Animação de Transição de Pose (LERP)
+        let isTransitioning = false;
+        let transitionProgress = 0;
+        let sourcePose = {};
+        let targetPose = {};
+        const transitionSpeed = 0.05; // Velocidade da transição da pose
+
+        function startPoseTransition(target) {
+            sourcePose = {};
+            targetPose = target;
+            
+            // Grava a pose atual de cada parte
+            Object.keys(targetPose).forEach(jointName => {
+                const joint = jointsMap[jointName];
+                if (joint) {
+                    sourcePose[jointName] = {
+                        rot: [joint.rotation.x, joint.rotation.y, joint.rotation.z],
+                        pos: (jointName === "Hips") ? [joint.position.x, joint.position.y, joint.position.z] : null
+                    };
+                }
+            });
+
+            transitionProgress = 0;
+            isTransitioning = true;
+        }
+
+        function updatePoseTransition() {
+            if (!isTransitioning) return;
+
+            transitionProgress += transitionSpeed;
+            if (transitionProgress >= 1) {
+                transitionProgress = 1;
+                isTransitioning = false;
+            }
+
+            Object.keys(targetPose).forEach(jointName => {
+                const joint = jointsMap[jointName];
+                const target = targetPose[jointName];
+                const source = sourcePose[jointName];
+
+                if (joint && target && source) {
+                    // Interpola rotação
+                    joint.rotation.x = THREE.MathUtils.lerp(source.rot[0], target.rot[0], transitionProgress);
+                    joint.rotation.y = THREE.MathUtils.lerp(source.rot[1], target.rot[1], transitionProgress);
+                    joint.rotation.z = THREE.MathUtils.lerp(source.rot[2], target.rot[2], transitionProgress);
+
+                    // Interpola posição do Quadril se existir
+                    if (jointName === "Hips" && target.pos && source.pos) {
+                        joint.position.x = THREE.MathUtils.lerp(source.pos[0], target.pos[0], transitionProgress);
+                        // Ajuste de escala vertical de acordo com o modelo chibi
+                        let targetY = target.pos[1];
+                        if (currentBodyType === 'chibi' && jointName === "Hips") {
+                            // Escala a altura do quadril proporcionalmente para chibis
+                            targetY = target.pos[1] * 0.55;
+                        }
+                        joint.position.y = THREE.MathUtils.lerp(source.pos[1], targetY, transitionProgress);
+                        joint.position.z = THREE.MathUtils.lerp(source.pos[2], target.pos[2], transitionProgress);
+                    }
+                }
+            });
+        }
+
+        // --- 7. Sistema de Controles Interativos ---
+        const orbit = new OrbitControls(camera, renderer.domElement);
+        orbit.enableDamping = true;
+        orbit.dampingFactor = 0.05;
+        orbit.target.set(0, 10, 0);
+
+        const transformControl = new TransformControls(camera, renderer.domElement);
+        transformControl.setMode("rotate");
+        transformControl.setSize(0.75);
+        scene.add(transformControl);
+
+        // Bloqueia órbita de câmera ao rotacionar os gizmos
+        transformControl.addEventListener('dragging-changed', function (event) {
+            orbit.enabled = !event.value;
+        });
+
+        // Raycasting inteligente para seleção
+        const raycaster = new THREE.Raycaster();
+        const mouse = new THREE.Vector2();
+        const infoDiv = document.getElementById('selected-info');
+        let selectedObject = null;
+
+        // Limpa destaque de articulações
+        function clearSelectionHighlight() {
+            if (selectedObject) {
+                selectedObject.traverse((node) => {
+                    if (node.userData.isJointMesh) {
+                        // Reseta para material de junta padrão
+                        node.material = currentJointMat;
+                    }
+                });
+            }
+        }
+
+        // Aplica destaque (Glow neon azul) na articulação selecionada
+        function highlightJoint(group) {
+            clearSelectionHighlight();
+            selectedObject = group;
+            
+            group.traverse((node) => {
+                if (node.userData.isJointMesh) {
+                    // Cria uma cópia brilhante temporária para realce visual
+                    const highlightMat = currentJointMat.clone();
+                    highlightMat.emissive.setHex(0x2563eb); // Azul royal brilhante
+                    highlightMat.emissiveIntensity = 0.8;
+                    node.material = highlightMat;
+                }
+            });
+        }
+
+        window.addEventListener('pointerdown', (event) => {
+            // Ignora cliques que atingirem painéis e elementos do painel de UI
+            if (event.target.closest('button') || event.target.closest('input') || event.target.closest('.absolute')) return;
+
+            mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+            mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+            
+            raycaster.setFromCamera(mouse, camera);
+            const intersects = raycaster.intersectObjects(mannequin.children, true);
+            
+            let foundSelection = false;
+            for (let i = 0; i < intersects.length; i++) {
+                let obj = intersects[i].object;
+                
+                // Sobe na hierarquia para achar o nó do grupo que possui o nome da junta
+                while (obj) {
+                    if (obj.type === 'Group' && obj.name && obj !== mannequin) {
+                        transformControl.attach(obj);
+                        highlightJoint(obj);
+                        infoDiv.textContent = `Articulação: ${translateJointName(obj.name)}`;
+                        
+                        // Habilita alternador de modo se for o Quadril (Root)
+                        const translateBtn = document.getElementById('control-translate');
+                        if (obj.name === "Hips") {
+                            translateBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+                        } else {
+                            // Se não for o quadril, força o modo de rotação apenas
+                            transformControl.setMode("rotate");
+                            document.getElementById('control-rotate').classList.replace('bg-slate-800', 'bg-blue-600');
+                            document.getElementById('control-rotate').classList.replace('text-slate-400', 'text-white');
+                            translateBtn.classList.replace('bg-blue-600', 'bg-slate-800');
+                            translateBtn.classList.replace('text-white', 'text-slate-400');
+                        }
+                        
+                        foundSelection = true;
+                        break;
+                    }
+                    obj = obj.parent;
+                }
+                if (foundSelection) break;
+            }
+        });
+
+        // Dicionário de tradução amigável das juntas
+        function translateJointName(name) {
+            const dictionary = {
+                "Hips": "Quadril (Raiz Principal)",
+                "Spine": "Coluna Vertebral",
+                "Chest": "Peitoral/Tórax",
+                "Neck": "Pescoço",
+                "Head": "Cabeça",
+                "LeftShoulder": "Ombro Esquerdo",
+                "LeftElbow": "Cotovelo Esquerdo",
+                "LeftHand": "Mão Esquerda",
+                "RightShoulder": "Ombro Direito",
+                "RightElbow": "Cotovelo Direito",
+                "RightHand": "Mão Direita",
+                "LeftHipJoint": "Articulação Quadril Esquerdo",
+                "LeftKnee": "Joelho Esquerdo",
+                "LeftFoot": "Pé Esquerdo",
+                "RightHipJoint": "Articulação Quadril Direito",
+                "RightKnee": "Joelho Direito",
+                "RightFoot": "Pé Direito"
+            };
+            return dictionary[name] || name;
+        }
+
+        // --- 8. Eventos de Interação da UI ---
+
+        // Tabs
+        const tabModel = document.getElementById('tab-model');
+        const tabPose = document.getElementById('tab-pose');
+        const tabScene = document.getElementById('tab-scene');
+        const contentModel = document.getElementById('content-model');
+        const contentPose = document.getElementById('content-pose');
+        const contentScene = document.getElementById('content-scene');
+
+        function switchTab(activeTab, activeContent) {
+            [tabModel, tabPose, tabScene].forEach(tab => {
+                tab.classList.remove('border-blue-500', 'text-blue-400');
+                tab.classList.add('border-transparent', 'text-slate-400');
+            });
+            [contentModel, contentPose, contentScene].forEach(content => content.classList.add('hidden'));
+            
+            activeTab.classList.add('border-blue-500', 'text-blue-400');
+            activeTab.classList.remove('border-transparent', 'text-slate-400');
+            activeContent.classList.remove('hidden');
+        }
+
+        tabModel.addEventListener('click', () => switchTab(tabModel, contentModel));
+        tabPose.addEventListener('click', () => switchTab(tabPose, contentPose));
+        tabScene.addEventListener('click', () => switchTab(tabScene, contentScene));
+
+        // Tipos de Corpo
+        function updateModelButtons(activeId) {
+            ['model-standard', 'model-heroic', 'model-female', 'model-chibi'].forEach(id => {
+                const btn = document.getElementById(id);
+                btn.className = "py-2 px-3 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-xs font-semibold transition border border-slate-700";
+            });
+            const activeBtn = document.getElementById(activeId);
+            activeBtn.className = "py-2 px-3 bg-blue-600 text-white rounded-lg text-xs font-semibold hover:bg-blue-500 transition border border-blue-400/30 shadow-lg shadow-blue-950/40";
+        }
+
+        // Função robusta de troca de modelo preservando pose
+        function changeModelType(type, buttonId) {
+            const savedPose = captureCurrentPose();
+            currentBodyType = type;
+            buildMannequin();
+            updateModelButtons(buttonId);
+            // Pequeno delay para garantir que a nova estrutura esteja totalmente pronta no Three.js
+            setTimeout(() => {
+                applySavedPose(savedPose);
+            }, 50);
+        }
+
+        document.getElementById('model-standard').addEventListener('click', () => changeModelType("standard", 'model-standard'));
+        document.getElementById('model-heroic').addEventListener('click', () => changeModelType("heroic", 'model-heroic'));
+        document.getElementById('model-female').addEventListener('click', () => changeModelType("female", 'model-female'));
+        document.getElementById('model-chibi').addEventListener('click', () => changeModelType("chibi", 'model-chibi'));
+
+        // Estilos de Materiais
+        function applyMaterial(bodyMat, jointMat) {
+            currentBodyMat = bodyMat;
+            currentJointMat = jointMat;
+            
+            mannequin.traverse((child) => {
+                if (child.isMesh) {
+                    if (child.userData.isLimbMesh) {
+                        child.material = bodyMat;
+                    } else if (child.userData.isJointMesh) {
+                        child.material = jointMat;
+                    }
+                }
+            });
+            
+            // Re-aplica destaque na junta atual ativa se houver
+            if (selectedObject) {
+                highlightJoint(selectedObject);
+            }
+        }
+
+        document.getElementById('mat-wood').addEventListener('click', () => applyMaterial(materials.wood, materials.woodJoint));
+        document.getElementById('mat-clay').addEventListener('click', () => applyMaterial(materials.clay, materials.clayJoint));
+        document.getElementById('mat-chrome').addEventListener('click', () => applyMaterial(materials.chrome, materials.chromeJoint));
+        document.getElementById('mat-neon').addEventListener('click', () => applyMaterial(materials.neon, materials.neonJoint));
+        document.getElementById('mat-silhouette').addEventListener('click', () => applyMaterial(materials.silhouette, materials.silhouetteJoint));
+
+        // Controle dos Gizmos (Mover vs Rotacionar)
+        const btnRotate = document.getElementById('control-rotate');
+        const btnTranslate = document.getElementById('control-translate');
+
+        btnRotate.addEventListener('click', () => {
+            transformControl.setMode("rotate");
+            btnRotate.className = "flex-1 py-1.5 bg-blue-600 text-white rounded text-xs font-semibold shadow-md";
+            btnTranslate.className = "flex-1 py-1.5 bg-slate-800 text-slate-400 hover:text-slate-200 rounded text-xs font-medium";
+        });
+
+        btnTranslate.addEventListener('click', () => {
+            if (selectedObject && selectedObject.name === "Hips") {
+                transformControl.setMode("translate");
+                btnTranslate.className = "flex-1 py-1.5 bg-blue-600 text-white rounded text-xs font-semibold shadow-md";
+                btnRotate.className = "flex-1 py-1.5 bg-slate-800 text-slate-400 hover:text-slate-200 rounded text-xs font-medium";
+            } else {
+                // Mensagem temporária estilizada de feedback no card inferior
+                infoDiv.textContent = "Apenas o Quadril pode ser transladado!";
+                infoDiv.classList.add('text-rose-400');
+                setTimeout(() => {
+                    infoDiv.classList.remove('text-rose-400');
+                    if (selectedObject) infoDiv.textContent = `Articulação: ${translateJointName(selectedObject.name)}`;
+                }, 2000);
+            }
+        });
+
+        // Biblioteca de Poses Pré-Definidas
+        document.getElementById('pose-t').addEventListener('click', () => startPoseTransition(poses.tPose));
+        document.getElementById('pose-running').addEventListener('click', () => startPoseTransition(poses.running));
+        document.getElementById('pose-heroic').addEventListener('click', () => startPoseTransition(poses.heroic));
+        document.getElementById('pose-meditate').addEventListener('click', () => startPoseTransition(poses.meditate));
+        document.getElementById('pose-combat').addEventListener('click', () => startPoseTransition(poses.combat));
+        document.getElementById('pose-flying').addEventListener('click', () => startPoseTransition(poses.flying));
+
+        // Ângulos de Câmera de Referência Rápida
+        document.getElementById('cam-front').addEventListener('click', () => {
+            camera.position.set(0, 10, 26);
+            orbit.target.set(0, 10, 0);
+            orbit.update();
+        });
+        document.getElementById('cam-side').addEventListener('click', () => {
+            camera.position.set(26, 10, 0);
+            orbit.target.set(0, 10, 0);
+            orbit.update();
+        });
+        document.getElementById('cam-back').addEventListener('click', () => {
+            camera.position.set(0, 10, -26);
+            orbit.target.set(0, 10, 0);
+            orbit.update();
+        });
+        document.getElementById('cam-top').addEventListener('click', () => {
+            camera.position.set(0, 30, 0.1);
+            orbit.target.set(0, 10, 0);
+            orbit.update();
+        });
+        document.getElementById('cam-iso').addEventListener('click', () => {
+            camera.position.set(18, 18, 18);
+            orbit.target.set(0, 10, 0);
+            orbit.update();
+        });
+
+        // --- Configuração Dinâmica de Cenário ---
+        
+        // Rotação da Luz Sol
+        const sunOrbitInput = document.getElementById('sun-orbit');
+        const sunValSpan = document.getElementById('sun-val');
+        sunOrbitInput.addEventListener('input', (e) => {
+            const angle = e.target.value;
+            sunValSpan.textContent = angle + "°";
+            const rad = (angle * Math.PI) / 180;
+            const radius = 22;
+            dirLight.position.x = Math.cos(rad) * radius;
+            dirLight.position.z = Math.sin(rad) * radius;
+        });
+
+        // Intensidade do Sol
+        const sunIntensityInput = document.getElementById('sun-intensity');
+        sunIntensityInput.addEventListener('input', (e) => {
+            dirLight.intensity = e.target.value / 100;
+        });
+
+        // Intensidade do Ambiente
+        const ambientIntensityInput = document.getElementById('ambient-intensity');
+        ambientIntensityInput.addEventListener('input', (e) => {
+            ambientLight.intensity = e.target.value / 100;
+        });
+
+        // Toggle do Piso e Grade
+        const toggleGrid = document.getElementById('toggle-grid');
+        toggleGrid.addEventListener('change', (e) => {
+            gridHelper.visible = e.target.checked;
+        });
+
+        // Toggle de Sombras do Renderizador
+        const toggleShadow = document.getElementById('toggle-shadow');
+        toggleShadow.addEventListener('change', (e) => {
+            renderer.shadowMap.enabled = e.target.checked;
+            floorPlane.visible = e.target.checked;
+            // Força remontagem de shaders de sombras
+            mannequin.traverse(child => {
+                if (child.isMesh) child.material.needsUpdate = true;
+            });
+        });
+
+        // Toggle Estúdio Escuro / Claro
+        const toggleDarkBg = document.getElementById('toggle-dark-bg');
+        toggleDarkBg.addEventListener('change', (e) => {
+            const useDark = e.target.checked;
+            scene.background = useDark ? darkBg : lightBg;
+            scene.fog.color = useDark ? darkBg : lightBg;
+            gridHelper.dispose();
+            scene.remove(gridHelper);
+            
+            // Troca cor da grade do chão para melhor contraste
+            const gridColorCenter = useDark ? 0x475569 : 0x94a3b8;
+            const gridColorLines = useDark ? 0x334155 : 0xcbd5e1;
+            const newGrid = new THREE.GridHelper(100, 60, gridColorCenter, gridColorLines);
+            newGrid.visible = toggleGrid.checked;
+            scene.add(newGrid);
+            // Referência global
+            window.gridHelper = newGrid;
+        });
+
+        // Reset e Limpeza Rápida (Atalhos)
+        document.getElementById('quick-reset').addEventListener('click', () => {
+            startPoseTransition(poses.default);
+            infoDiv.textContent = "Pose reiniciada!";
+        });
+
+        document.getElementById('quick-deselect').addEventListener('click', () => {
+            transformControl.detach();
+            clearSelectionHighlight();
+            selectedObject = null;
+            infoDiv.textContent = "Nenhuma junta ativa selecionada";
+        });
+
+        // --- 9. Exportação e Importação de Poses em JSON ---
+        
+        // Exportação
+        document.getElementById('save-pose-btn').addEventListener('click', () => {
+            const poseData = {};
+            Object.keys(jointsMap).forEach(key => {
+                const joint = jointsMap[key];
+                poseData[key] = {
+                    rot: [joint.rotation.x, joint.rotation.y, joint.rotation.z],
+                    pos: (key === "Hips") ? [joint.position.x, joint.position.y, joint.position.z] : null
+                };
+            });
+            poseData.bodyType = currentBodyType;
+
+            const jsonStr = JSON.stringify(poseData, null, 2);
+            const blob = new Blob([jsonStr], { type: "application/json" });
+            const url = URL.createObjectURL(blob);
+            
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `pose-manequim-${currentBodyType}-${new Date().toISOString().slice(0,10)}.json`;
+            link.click();
+            URL.revokeObjectURL(url);
+        });
+
+        // Importação
+        const fileInput = document.getElementById('pose-file-input');
+        document.getElementById('load-pose-btn').addEventListener('click', () => {
+            fileInput.click();
+        });
+
+        fileInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = (evt) => {
+                try {
+                    const loadedPose = JSON.parse(evt.target.result);
+                    
+                    // Se o modelo salvo for diferente, altera primeiro antes de posar
+                    if (loadedPose.bodyType && loadedPose.bodyType !== currentBodyType) {
+                        currentBodyType = loadedPose.bodyType;
+                        buildMannequin();
+                        updateModelButtons(`model-${currentBodyType}`);
+                    }
+                    
+                    // Inicia interpolação suave de pose carregada
+                    startPoseTransition(loadedPose);
+                    infoDiv.textContent = "Pose importada com sucesso!";
+                } catch (err) {
+                    infoDiv.textContent = "Erro ao ler arquivo de pose JSON.";
+                    infoDiv.classList.add('text-rose-400');
+                    setTimeout(() => infoDiv.classList.remove('text-rose-400'), 3000);
+                }
+            };
+            reader.readAsText(file);
+        });
+
+        // --- 10. Captura de Tela Artística (Screenshot PNG transparente/sólido) ---
+        document.getElementById('screenshot-btn').addEventListener('click', () => {
+            // Deseleciona para não aparecer o Gizmo e destaque de articulação na foto
+            transformControl.detach();
+            clearSelectionHighlight();
+            const prevSelected = selectedObject;
+            selectedObject = null;
+            
+            // Renderiza um quadro limpo
+            renderer.render(scene, camera);
+            
+            // Baixa a imagem gerada no buffer do canvas
+            const dataURL = renderer.domElement.toDataURL('image/png');
+            const link = document.createElement('a');
+            link.download = `referencia-manequim-desenho-${Date.now()}.png`;
+            link.href = dataURL;
+            link.click();
+            
+            // Restaura seleção anterior do usuário para continuar editando
+            if (prevSelected) {
+                setTimeout(() => {
+                    selectedObject = prevSelected;
+                    transformControl.attach(prevSelected);
+                    highlightJoint(prevSelected);
+                }, 500);
+            }
+        });
+
+        // --- 11. Loop de Renderização e Animação ---
+        function animate() {
+            requestAnimationFrame(animate);
+            
+            // Executa transições suaves de pose (interpolação por LERP)
+            updatePoseTransition();
+            
+            orbit.update();
+            renderer.render(scene, camera);
+        }
+
+        // Aguarda carregamento total do DOM e inicia loop
+        window.onload = function() {
+            animate();
+        };
+
+        // Responsividade do Canvas WebGL
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+    </script>
+</body>
+</html>
+

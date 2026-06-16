@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Galeria Virtual 3D - Painel do Autor Customizável</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            font-family: 'Courier New', Courier, monospace;
+            background-color: #121212;
+        }
+
+        #canvas-container {
+            width: 100vw;
+            height: 100vh;
+        }
+
+        #blocker {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.7);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: #ffffff;
+            cursor: pointer;
+            text-align: center;
+            z-index: 10;
+        }
+
+        #instructions {
+            background: rgba(30, 30, 30, 0.95);
+            border: 2px solid #fff;
+            padding: 30px;
+            box-shadow: 0 0 20px rgba(0,0,0,0.5);
+        }
+
+        h1 {
+            margin-top: 0;
+            color: #ffffff;
+            letter-spacing: 2px;
+        }
+
+        #crosshair {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 10px;
+            height: 10px;
+            transform: translate(-50%, -50%);
+            color: rgba(255, 255, 255, 0.6);
+            font-size: 20px;
+            user-select: none;
+            pointer-events: none;
+            z-index: 5;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div id="crosshair">+</div>
+
+    <div id="blocker">
+        <div id="instructions">
+            <h1>GALERIA DE ARTE VIRTUAL</h1>
+            <p><strong>CLIQUE PARA ENTRAR NO AMBIENTE</strong></p>
+            <p>Navegação: W, A, S, D<br>Olhar: Movimento do Mouse</p>
+            <p style="color: #aaaaaa; font-size: 12px;">Pressione ESPAÇO para pular • SHIFT para correr</p>
+        </div>
+    </div>
+
+    <div id="canvas-container"></div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/PointerLockControls.js"></script>
+
+    <script>
+        // --- CONFIGURAÇÃO DA CENA ---
+        const container = document.getElementById('canvas-container');
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x121212);
+        scene.fog = new THREE.FogExp2(0x121212, 0.03); 
+
+        const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+        camera.position.set(0, 2, 8); 
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true }); 
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.toneMapping = THREE.ACESFilmicToneMapping; 
+        renderer.toneMappingExposure = 1.0;
+        container.appendChild(renderer.domElement);
+
+        // --- CONTROLES E INPUTS ---
+        const controls = new THREE.PointerLockControls(camera, document.body);
+        const blocker = document.getElementById('blocker');
+
+        blocker.addEventListener('click', () => { controls.lock(); });
+        controls.addEventListener('lock', () => { blocker.style.display = 'none'; });
+        controls.addEventListener('unlock', () => { blocker.style.display = 'flex'; });
+
+        let moveForward = false, moveBackward = false, moveLeft = false, moveRight = false;
+        let isRunning = false;
+        let canJump = false;
+
+        const velocity = new THREE.Vector3();
+        const direction = new THREE.Vector3();
+        let prevTime = performance.now();
+
+        document.addEventListener('keydown', (e) => {
+            switch (e.code) {
+                case 'KeyW': moveForward = true; break;
+                case 'KeyA': moveLeft = true; break;
+                case 'KeyS': moveBackward = true; break;
+                case 'KeyD': moveRight = true; break;
+                case 'ShiftLeft':
+                case 'ShiftRight': isRunning = true; break;
+                case 'Space':
+                    if (canJump === true) velocity.y += 12; 
+                    canJump = false;
+                    break;
+            }
+        });
+
+        document.addEventListener('keyup', (e) => {
+            switch (e.code) {
+                case 'KeyW': moveForward = false; break;
+                case 'KeyA': moveLeft = false; break;
+                case 'KeyS': moveBackward = false; break;
+                case 'KeyD': moveRight = false; break;
+                case 'ShiftLeft':
+                case 'ShiftRight': isRunning = false; break;
+            }
+        });
+
+        // --- SISTEMA DE CARREGAMENTO DE TEXTURAS REAIS ---
+        const textureLoader = new THREE.TextureLoader();
+
+        function configureTexture(texture, repeatX, repeatY) {
+            texture.wrapS = THREE.RepeatWrapping;
+            texture.wrapT = THREE.RepeatWrapping;
+            texture.repeat.set(repeatX, repeatY);
+            texture.minFilter = THREE.LinearMipmapLinearFilter;
+            texture.magFilter = THREE.LinearFilter;
+        }
+
+        const URL_PISO = "artes/parede_2.png"; // Piso
+        const URL_PAREDE = "artes/piso_2.png"; // Parede
+        const URL_TETO = "artes/teto_1.png"; // Teto
+        
+        const pisoTex = textureLoader.load(URL_PISO);    configureTexture(pisoTex, 8, 8);
+        const paredeTex = textureLoader.load(URL_PAREDE); configureTexture(paredeTex, 6, 2);
+        const tetoTex = textureLoader.load(URL_TETO);    configureTexture(tetoTex, 6, 6);
+
+        // --- ILUMINAÇÃO DE GALERIA ---
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.35); 
+        scene.add(ambientLight);
+
+        function createCeilingSpot(x, z) {
+            const tetoY = 4.9;
+            const spotLight = new THREE.PointLight(0xfff5ea, 1.2, 15); 
+            spotLight.position.set(x, tetoY - 0.2, z);
+            scene.add(spotLight);
+
+            const spotGeo = new THREE.BoxGeometry(0.4, 0.05, 0.4);
+            const spotMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
+            const spotMesh = new THREE.Mesh(spotGeo, spotMat);
+            spotMesh.position.set(x, tetoY, z);
+            scene.add(spotMesh);
+        }
+
+        function createRoundCornerSpot(x, z) {
+            const tetoY = 4.9;
+            const cornerLight = new THREE.PointLight(0xfff5ea, 3.0, 16);
+            cornerLight.position.set(x, tetoY - 0.2, z);
+            scene.add(cornerLight);
+
+            const spotGeo = new THREE.CylinderGeometry(0.2, 0.2, 0.05, 24);
+            const spotMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
+            const spotMesh = new THREE.Mesh(spotGeo, spotMat);
+            spotMesh.position.set(x, tetoY, z);
+            scene.add(spotMesh);
+        }
+
+        createCeilingSpot(-6, 6);  createCeilingSpot(6, 6);   createCeilingSpot(0, 3);
+        createCeilingSpot(-7, -7); createCeilingSpot(7, -7);  createCeilingSpot(0, -9); createCeilingSpot(0, -3);
+
+        createRoundCornerSpot(-14, 14); 
+        createRoundCornerSpot(14, 14);  
+        createRoundCornerSpot(-14, 1);   
+        createRoundCornerSpot(14, 1);   
+
+        createRoundCornerSpot(-14, -14); 
+        createRoundCornerSpot(14, -14);  
+        createRoundCornerSpot(-14, -1);  
+        createRoundCornerSpot(14, -1);   
+
+
+        // --- ESTRUTURA DO MAPA ---
+        const size = 30;
+
+        const floorMat = new THREE.MeshStandardMaterial({ map: pisoTex, roughness: 0.4, metalness: 0.1 });
+        const floor = new THREE.Mesh(new THREE.PlaneGeometry(size, size), floorMat);
+        floor.rotation.x = -Math.PI / 2; scene.add(floor);
+
+        const ceilingMat = new THREE.MeshStandardMaterial({ map: tetoTex, roughness: 0.8 });
+        const ceiling = new THREE.Mesh(new THREE.PlaneGeometry(size, size), ceilingMat);
+        ceiling.rotation.x = Math.PI / 2; ceiling.position.y = 5; scene.add(ceiling);
+
+        // Paredes Externas
+        const wallMat = new THREE.MeshStandardMaterial({ map: paredeTex, roughness: 0.9, color: 0xfbfbfb });
+        
+        const wallBack = new THREE.Mesh(new THREE.PlaneGeometry(size, 5), wallMat); wallBack.position.set(0, 2.5, -size / 2); scene.add(wallBack);
+        const wallFront = new THREE.Mesh(new THREE.PlaneGeometry(size, 5), wallMat); wallFront.position.set(0, 2.5, size / 2); wallFront.rotation.y = Math.PI; scene.add(wallFront);
+        const wallLeft = new THREE.Mesh(new THREE.PlaneGeometry(size, 5), wallMat); wallLeft.position.set(-size / 2, 2.5, 0); wallLeft.rotation.y = Math.PI / 2; scene.add(wallLeft);
+        const wallRight = new THREE.Mesh(new THREE.PlaneGeometry(size, 5), wallMat); wallRight.position.set(size / 2, 2.5, 0); wallRight.rotation.y = -Math.PI / 2; scene.add(wallRight);
+
+        // Parede Divisória Central
+        const wallThickness = 1.0;
+        const segmentWidth = 13.5;
+        const dividerGeo = new THREE.BoxGeometry(segmentWidth, 5, wallThickness);
+
+        const divLeft = new THREE.Mesh(dividerGeo, wallMat);
+        divLeft.position.set(-segmentWidth / 2 - 1.5, 2.5, 0);
+        scene.add(divLeft);
+
+        const divRight = new THREE.Mesh(dividerGeo, wallMat);
+        divRight.position.set(segmentWidth / 2 + 1.5, 2.5, 0);
+        scene.add(divRight);
+
+
+        // --- SISTEMA DE CARREGAMENTO DE OBRAS DE ARTE (Ajustado para aceitar dimensões customizadas) ---
+        function createArtPiece(title, imagePath, x, y, z, rotY, customWidth = 3, customHeight = 2) {
+            const group = new THREE.Group();
+
+            // Adiciona uma pequena folga física na moldura externa baseada nas proporções enviadas
+            const frameGeo = new THREE.BoxGeometry(customWidth + 0.14, customHeight + 0.14, 0.08);
+            const frameMat = new THREE.MeshStandardMaterial({ color: 0x1a1a1a, roughness: 0.8 });
+            const frame = new THREE.Mesh(frameGeo, frameMat);
+            group.add(frame);
+
+            const artTex = textureLoader.load(imagePath);
+            artTex.minFilter = THREE.LinearMipmapLinearFilter;
+            artTex.magFilter = THREE.LinearFilter;
+
+            const artGeo = new THREE.PlaneGeometry(customWidth, customHeight);
+            const artMat = new THREE.MeshStandardMaterial({
+                map: artTex,
+                roughness: 0.4, 
+                metalness: 0.0
+            });
+
+            const art = new THREE.Mesh(artGeo, artMat);
+            art.position.z = 0.041; 
+            group.add(art);
+
+            group.position.set(x, y, z);
+            group.rotation.y = rotY;
+            scene.add(group);
+        }
+
+
+        // --- INSERÇÃO DOS QUADROS ---
+        const zOffset = (wallThickness / 2) + 0.02;
+
+        // NOVO: Quadro Gigante de Entrada para o Letreiro do Autor
+        // Localizado na parede imediatamente atrás do nascimento do avatar (Z = 15). 
+        // Rotacionado em Math.PI para ficar virado para dentro da Sala 1.
+        createArtPiece("Painel de Entrada do Autor", "artes/letreiro_autor.png", 0, 2.6, (-size / 2) + 0.05, 0, 8.0, 2.5);
+
+        // SALA 1 (Quadros Padrão)
+        createArtPiece("Arte Sala 1 - Esquerda", "artes/obra_1.png", -14.9, 2.5, 7, Math.PI / 2);
+        createArtPiece("Arte Sala 1 - Direita", "artes/obra_2.png", 14.9, 2.5, 7, -Math.PI / 2);
+        createArtPiece("Painel Central Esq S1", "artes/obra_3.png", -6, 2.5, zOffset, 0);
+        createArtPiece("Painel Central Dir S1", "artes/obra_4.png", 6, 2.5, zOffset, 0);
+
+        // SALA 2 (Quadros Padrão)
+        createArtPiece("Arte Sala 2 - Fundo Esquerda", "artes/obra_6.png", -7, 2.5, -14.9, 0);
+        createArtPiece("Arte Sala 2 - Fundo Direita", "artes/obra_1.png", 7, 2.5, -14.9, 0);
+        createArtPiece("Painel Central Esq S2", "artes/obra_2.png", -6, 2.5, -zOffset, Math.PI);
+        createArtPiece("Painel Central Dir S2", "artes/obra_3.png", 6, 2.5, -zOffset, Math.PI);
+
+
+        // --- LOOP DE ANIMAÇÃO ---
+        function animate() {
+            requestAnimationFrame(animate);
+            const time = performance.now();
+
+            if (controls.isLocked === true) {
+                const delta = (time - prevTime) / 1000;
+
+                velocity.x -= velocity.x * 10.0 * delta;
+                velocity.z -= velocity.z * 10.0 * delta;
+                velocity.y -= 9.8 * 4.0 * delta; 
+
+                direction.z = Number(moveForward) - Number(moveBackward);
+                direction.x = Number(moveRight) - Number(moveLeft);
+                direction.normalize();
+
+                let currentSpeed = 40.0;
+                if (isRunning && (moveForward || moveBackward)) {
+                    currentSpeed = 75.0;
+                }
+
+                if (moveForward || moveBackward) velocity.z -= direction.z * currentSpeed * delta;
+                if (moveLeft || moveRight) velocity.x -= direction.x * currentSpeed * delta;
+
+                controls.moveRight(-velocity.x * delta);
+                controls.moveForward(-velocity.z * delta);
+
+                controls.getObject().position.y += (velocity.y * delta);
+
+                const floorHeight = 2.0; 
+                if (controls.getObject().position.y < floorHeight) {
+                    velocity.y = 0;
+                    controls.getObject().position.y = floorHeight;
+                    canJump = true;
+                }
+
+                const halfSize = size / 2;
+                const playerRadius = 1.0;
+                const camObj = controls.getObject();
+
+                if (camObj.position.x > halfSize - playerRadius) camObj.position.x = halfSize - playerRadius;
+                if (camObj.position.x < -halfSize + playerRadius) camObj.position.x = -halfSize + playerRadius;
+                if (camObj.position.z > halfSize - playerRadius) camObj.position.z = halfSize - playerRadius;
+                if (camObj.position.z < -halfSize + playerRadius) camObj.position.z = -halfSize + playerRadius;
+
+                const wallLimit = (wallThickness / 2) + playerRadius;
+
+                if (Math.abs(camObj.position.z) < wallLimit) {
+                    if (camObj.position.x < -1.5 || camObj.position.x > 1.5) {
+                        if (camObj.position.z > 0) {
+                            camObj.position.z = wallLimit;
+                        } else {
+                            camObj.position.z = -wallLimit;
+                        }
+                    } else {
+                        if (camObj.position.x < -1.5 + (playerRadius * 0.4)) camObj.position.x = -1.5 + (playerRadius * 0.4);
+                        if (camObj.position.x > 1.5 - (playerRadius * 0.4)) camObj.position.x = 1.5 - (playerRadius * 0.4);
+                    }
+                }
+            }
+
+            prevTime = time;
+            renderer.render(scene, camera);
+        }
+
+        animate();
+
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+    </script>
+</body>
+
+</html>

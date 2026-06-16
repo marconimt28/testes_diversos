@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Galeria Virtual 3D - Estilo Minecraft</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            font-family: 'Courier New', Courier, monospace; /* Toque pixelado/retrô */
+            background-color: #1a1a1a;
+        }
+
+        #canvas-container {
+            width: 100vw;
+            height: 100vh;
+        }
+
+        /* Tela de bloqueio/Instruções */
+        #blocker {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.7);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: #ffffff;
+            cursor: pointer;
+            text-align: center;
+            z-index: 10;
+        }
+
+        #instructions {
+            background: rgba(50, 50, 50, 0.8);
+            border: 4px solid #fff;
+            padding: 20px;
+            image-rendering: pixelated;
+        }
+
+        h1 { margin-top: 0; color: #55ff55; text-shadow: 2px 2px #005500; }
+
+        /* Mira estilo Minecraft */
+        #crosshair {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 10px;
+            height: 10px;
+            transform: translate(-50%, -50%);
+            color: white;
+            font-size: 20px;
+            user-select: none;
+            pointer-events: none;
+            z-index: 5;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="crosshair">+</div>
+
+    <div id="blocker">
+        <div id="instructions">
+            <h1>GALERIA CRAFT</h1>
+            <p><strong>CLIQUE PARA ENTRAR</strong></p>
+            <p>Movimento: W, A, S, D<br>Olhar: Mouse</p>
+        </div>
+    </div>
+
+    <div id="canvas-container"></div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/PointerLockControls.js"></script>
+
+    <script>
+        // --- CONFIGURAÇÃO DA CENA ---
+        const container = document.getElementById('canvas-container');
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x1a1a1a);
+        scene.fog = new THREE.FogExp2(0x1a1a1a, 0.05); // Névoa estilo jogo
+
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        camera.position.y = 2; // Altura dos olhos do avatar
+
+        const renderer = new THREE.WebGLRenderer({ antialias: false }); // Falso para manter o visual cru/pixel
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        container.appendChild(renderer.domElement);
+
+        // --- CONTROLES DE MOVIMENTO (PointerLock) ---
+        const controls = new THREE.PointerLockControls(camera, document.body);
+        const blocker = document.getElementById('blocker');
+
+        blocker.addEventListener('click', () => { controls.lock(); });
+        controls.addEventListener('lock', () => { blocker.style.display = 'none'; });
+        controls.addEventListener('unlock', () => { blocker.style.display = 'flex'; });
+
+        let moveForward = false;
+        let moveBackward = false;
+        let moveLeft = false;
+        let moveRight = false;
+
+        const velocity = new THREE.Vector3();
+        const direction = new THREE.Vector3();
+        let prevTime = performance.now();
+
+        const onKeyDown = function (event) {
+            switch (event.code) {
+                case 'KeyW': moveForward = true; break;
+                case 'KeyA': moveLeft = true; break;
+                case 'KeyS': moveBackward = true; break;
+                case 'KeyD': moveRight = true; break;
+            }
+        };
+
+        const onKeyUp = function (event) {
+            switch (event.code) {
+                case 'KeyW': moveForward = false; break;
+                case 'KeyA': moveLeft = false; break;
+                case 'KeyS': moveBackward = false; break;
+                case 'KeyD': moveRight = false; break;
+            }
+        };
+
+        document.addEventListener('keydown', onKeyDown);
+        document.addEventListener('keyup', onKeyUp);
+
+        // --- ILUMINAÇÃO ---
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
+        scene.add(ambientLight);
+
+        // Luzes pontuais como se fossem "Tochas" na galeria
+        function createTorch(x, z) {
+            const torchLight = new THREE.PointLight(0xffaa44, 1.2, 15);
+            torchLight.position.set(x, 3, z);
+            scene.add(torchLight);
+
+            // Marcador visual da tocha (um pequeno bloco)
+            const geo = new THREE.BoxGeometry(0.2, 0.5, 0.2);
+            const mat = new THREE.MeshBasicMaterial({ color: 0xffaa44 });
+            const mesh = new THREE.Mesh(geo, mat);
+            mesh.position.set(x, 3, z);
+            scene.add(mesh);
+        }
+        createTorch(0, -5);
+        createTorch(-8, -15);
+        createTorch(8, -15);
+
+        // --- GERADOR DE TEXTURA PIXELADA (Canvas dinâmico) ---
+        // Cria um padrão quadriculado sem precisar carregar imagens externas
+        function createGridTexture(color1, color2) {
+            const canvas = document.createElement('canvas');
+            canvas.width = 16;
+            canvas.height = 16;
+            const ctx = canvas.getContext('2d');
+            
+            ctx.fillStyle = color1;
+            ctx.fillRect(0, 0, 16, 16);
+            ctx.fillStyle = color2;
+            // Borda interna para simular blocos de linha
+            ctx.fillRect(1, 1, 14, 14);
+            
+            const texture = new THREE.CanvasTexture(canvas);
+            texture.magFilter = THREE.NearestFilter; // Crucial para o efeito pixelado do Minecraft
+            texture.wrapS = THREE.RepeatWrapping;
+            texture.wrapT = THREE.RepeatWrapping;
+            return texture;
+        }
+
+        // --- CONSTRUÇÃO DO CENÁRIO (MUNDO DE BLOCOS) ---
+        const size = 30; // Tamanho da sala quadrada
+
+        // Chão (Textura escura de pedra/pedregulho)
+        const floorTex = createGridTexture('#333', '#444');
+        floorTex.repeat.set(size, size);
+        const floorMat = new THREE.MeshStandardMaterial({ map: floorTex, roughness: 0.9 });
+        const floorGeo = new THREE.PlaneGeometry(size, size);
+        const floor = new THREE.Mesh(floorGeo, floorMat);
+        floor.rotation.x = -Math.PI / 2;
+        scene.add(floor);
+
+        // Teto (Textura de tábuas de madeira artificiais)
+        const ceilTex = createGridTexture('#5c4033', '#3d2b1f');
+        ceilTex.repeat.set(size, size);
+        const ceilMat = new THREE.MeshStandardMaterial({ map: ceilTex });
+        const ceilGeo = new THREE.PlaneGeometry(size, size);
+        const ceiling = new THREE.Mesh(ceilGeo, ceilMat);
+        ceiling.rotation.x = Math.PI / 2;
+        ceiling.position.y = 5; // Altura do teto
+        scene.add(ceiling);
+
+        // Paredes (Tijolo cinza)
+        const wallTex = createGridTexture('#555', '#666');
+        wallTex.repeat.set(size, 5);
+        const wallMat = new THREE.MeshStandardMaterial({ map: wallTex, roughness: 0.8 });
+        
+        const wallGeo = new THREE.PlaneGeometry(size, 5);
+        
+        // Parede Fundo
+        const wallBack = new THREE.Mesh(wallGeo, wallMat);
+        wallBack.position.set(0, 2.5, -size/2);
+        scene.add(wallBack);
+
+        // Parede Esquerda
+        const wallLeft = new THREE.Mesh(wallGeo, wallMat);
+        wallLeft.position.set(-size/2, 2.5, 0);
+        wallLeft.rotation.y = Math.PI / 2;
+        scene.add(wallLeft);
+
+        // Parede Direita
+        const wallRight = new THREE.Mesh(wallGeo, wallMat);
+        wallRight.position.set(size/2, 2.5, 0);
+        wallRight.rotation.y = -Math.PI / 2;
+        scene.add(wallRight);
+
+        // --- ADICIONANDO OBRAS DE ARTE (QUADROS) ---
+        // Função para gerar quadros com moldura estilo bloco
+        function createArtPiece(title, colorHex, x, y, z, rotY) {
+            const group = new THREE.Group();
+
+            // Moldura externa (Preta)
+            const frameGeo = new THREE.BoxGeometry(3.2, 2.2, 0.1);
+            const frameMat = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 1.0 });
+            const frame = new THREE.Mesh(frameGeo, frameMat);
+            group.add(frame);
+
+            // Tela (Onde vai a arte)
+            // Aqui usamos cores sólidas, mas você pode substituir por THREE.TextureLoader().load('sua-arte.jpg')
+            const artGeo = new THREE.PlaneGeometry(3, 2);
+            const artMat = new THREE.MeshStandardMaterial({ 
+                color: colorHex, 
+                roughness: 0.2,
+                metalness: 0.1
+            });
+            const art = new THREE.Mesh(artGeo, artMat);
+            art.position.z = 0.06; // Levemente à frente da moldura para não dar bug visual
+            group.add(art);
+
+            // Posicionamento final do grupo do quadro
+            group.position.set(x, y, z);
+            group.rotation.y = rotY;
+            scene.add(group);
+        }
+
+        // Espalhando quadros coloridos pelas paredes (Substitua as cores por texturas reais depois!)
+        createArtPiece("Obra Minimalista Azul", 0x00aaff, 0, 2.5, -14.9, 0);
+        createArtPiece("Obra Minimalista Vermelha", 0xff3333, -6, 2.5, -14.9, 0);
+        createArtPiece("Obra Minimalista Verde", 0x33ff33, 6, 2.5, -14.9, 0);
+
+        createArtPiece("Galeria Esquerda 1", 0xffaa00, -14.9, 2.5, -5, Math.PI / 2);
+        createArtPiece("Galeria Esquerda 2", 0xaa00ff, -14.9, 2.5, 5, Math.PI / 2);
+
+        createArtPiece("Galeria Direita 1", 0x00ffff, 14.9, 2.5, -5, -Math.PI / 2);
+        createArtPiece("Galeria Direita 2", 0xffff00, 14.9, 2.5, 5, -Math.PI / 2);
+
+
+        // --- LOOP DE ANIMAÇÃO E FÍSICA DE MOVIMENTO ---
+        function animate() {
+            requestAnimationFrame(animate);
+
+            const time = performance.now();
+
+            if (controls.isLocked === true) {
+                const delta = (time - prevTime) / 1000;
+
+                // Reduz a velocidade gradativamente (Atrito/Desaceleração)
+                velocity.x -= velocity.x * 10.0 * delta;
+                velocity.z -= velocity.z * 10.0 * delta;
+
+                // Define a direção baseada no input
+                direction.z = Number(moveForward) - Number(moveBackward);
+                direction.x = Number(moveRight) - Number(moveLeft);
+                direction.normalize(); 
+
+                // Velocidade de caminhada ajustada para o estilo do jogo
+                const speed = 40.0;
+                if (moveForward || moveBackward) velocity.z -= direction.z * speed * delta;
+                if (moveLeft || moveRight) velocity.x -= direction.x * speed * delta;
+
+                // Aplica o movimento nos eixos locais do avatar
+                controls.moveRight(-velocity.x * delta);
+                controls.moveForward(-velocity.z * delta);
+
+                // --- LIMITADOR DE FRONTEIRAS (Colisão simples com as paredes) ---
+                const border = (size / 2) - 1.2; // Distância limite do centro
+                if (camera.position.x > border) camera.position.x = border;
+                if (camera.position.x < -border) camera.position.x = -border;
+                if (camera.position.z > border) camera.position.z = border;
+                if (camera.position.z < -border) camera.position.z = -border;
+            }
+
+            prevTime = time;
+            renderer.render(scene, camera);
+        }
+
+        animate();
+
+        // --- AJUSTE DE TELA (RESPONSIVIDADE) ---
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+    </script>
+</body>
+</html>

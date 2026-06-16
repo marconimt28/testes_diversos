@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Álbum 3D Flutuante</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            /* Fundo cósmico/abstrato para parecer que flutua no espaço */
+            background: radial-gradient(circle at center, #1c1510 0%, #0a0705 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-family: 'Georgia', serif;
+            overflow: hidden;
+        }
+
+        /* CONTAINER DA PERSPECTIVA: Olhando bem de cima */
+        .album-container {
+            perspective: 3000px;
+            perspective-origin: 50% 10%; 
+            width: 900px;
+            height: 600px;
+            position: relative;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        /* O ÁLBUM FLUTUANTE: Ângulo agressivo no espaço */
+        .album {
+            width: 450px;
+            height: 100%;
+            position: relative;
+            transform-style: preserve-3d;
+            transition: transform 1.2s cubic-bezier(0.25, 1, 0.5, 1);
+            /* Estado fechado: Muito inclinado para frente e levemente de lado */
+            transform: translateX(50%) rotateX(45deg) rotateY(-15deg) rotateZ(-5deg); 
+        }
+
+        /* Estado aberto: Mantém a inclinação de órbita */
+        .album.opened {
+            transform: translateX(0%) rotateX(45deg) rotateY(0deg) rotateZ(0deg);
+        }
+
+        /* Configuração de cada Folha */
+        .page {
+            width: 100%;
+            height: 100%;
+            position: absolute;
+            top: 0;
+            left: 0;
+            transform-origin: left center;
+            transform-style: preserve-3d;
+            transition: transform 1.4s cubic-bezier(0.4, 0, 0.2, 1);
+            z-index: 1;
+        }
+
+        /* Frente e Verso */
+        .front, .back {
+            width: 100%;
+            height: 100%;
+            position: absolute;
+            top: 0;
+            left: 0;
+            backface-visibility: hidden;
+            padding: 30px;
+            /* Sombra suave e borrada para simular flutuação no vazio */
+            box-shadow: inset 0 0 50px rgba(0,0,0,0.6), 0 30px 60px rgba(0,0,0,0.8);
+            display: flex;
+            flex-direction: column;
+            justify-content: space-around;
+            align-items: center;
+        }
+
+        .front {
+            background: #e6dfd3; 
+            border-radius: 0 15px 15px 0;
+        }
+
+        .back {
+            background: #dfd7c8;
+            transform: rotateY(180deg);
+            border-radius: 15px 0 0 15px;
+        }
+
+        /* Capas em Couro Envelhecido */
+        .cover-front {
+            background: #4a2c11;
+            border-radius: 0 15px 15px 0;
+            border-left: 12px solid #2d1a0a;
+            color: #d4af37;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+        }
+
+        .cover-front h1 {
+            font-size: 2.5rem;
+            text-shadow: 3px 3px 6px rgba(0,0,0,0.9);
+            border: 2px solid #d4af37;
+            padding: 20px;
+            background: rgba(0,0,0,0.3);
+        }
+
+        .cover-back {
+            background: #4a2c11;
+            border-radius: 15px 0 0 15px;
+            border-right: 12px solid #2d1a0a;
+        }
+
+        /* Molduras das Fotos */
+        .photo-holder {
+            width: 82%;
+            height: 42%;
+            background: #fff;
+            padding: 12px 12px 25px 12px;
+            box-shadow: 5px 10px 20px rgba(0,0,0,0.5);
+            transform: rotate(var(--r)); 
+            cursor: pointer;
+            transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275), box-shadow 0.3s ease;
+            border: 1px solid #ddd;
+        }
+
+        /* Efeito flutuante extra ao passar o mouse */
+        .photo-holder:hover {
+            transform: scale(1.08) rotate(0deg) translateZ(40px) translateY(-10px) !important;
+            box-shadow: 0 30px 40px rgba(0,0,0,0.9);
+            z-index: 20;
+        }
+
+        .photo-holder img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            filter: sepia(0.4) contrast(0.95) brightness(0.9);
+        }
+
+        /* Movimento de virar a página no espaço */
+        .page.flipped {
+            transform: rotateY(-180deg);
+        }
+
+        /* Setas de navegação flutuantes */
+        .nav-btn {
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            background: rgba(45, 30, 20, 0.6);
+            color: #e6dfd3;
+            border: 1px solid rgba(212, 175, 55, 0.4);
+            padding: 18px 22px;
+            font-size: 1.6rem;
+            cursor: pointer;
+            border-radius: 50%;
+            z-index: 100;
+            backdrop-filter: blur(5px);
+            transition: all 0.3s ease;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.5);
+        }
+
+        .nav-btn:hover {
+            background: rgba(212, 175, 55, 0.9);
+            color: #2c1d11;
+            box-shadow: 0 0 20px rgba(212, 175, 55, 0.6);
+            transform: translateY(-50%) scale(1.1);
+        }
+
+        #prevBtn { left: -120px; }
+        #nextBtn { right: -120px; }
+
+        /* Janela de Zoom (Lightbox) */
+        .lightbox {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(5, 4, 3, 0.97);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.5s ease;
+        }
+
+        .lightbox.active {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .lightbox-content {
+            max-width: 85%;
+            max-height: 80%;
+            position: relative;
+            transform: scale(0.5) rotateX(-20deg);
+            transition: transform 0.5s cubic-bezier(0.2, 1, 0.2, 1);
+            background: #fff;
+            padding: 25px 25px 60px 25px;
+            box-shadow: 0 30px 70px rgba(0,0,0,0.9);
+        }
+
+        .lightbox.active .lightbox-content {
+            transform: scale(1) rotateX(0deg);
+        }
+
+        .lightbox-content img {
+            max-width: 100%;
+            max-height: 70vh;
+            display: block;
+            filter: sepia(0.15);
+        }
+
+        .close-btn {
+            position: absolute;
+            bottom: 15px;
+            right: 25px;
+            background: #4a2c11;
+            color: #fff;
+            border: none;
+            padding: 10px 25px;
+            font-family: 'Georgia', serif;
+            cursor: pointer;
+            border-radius: 4px;
+            transition: background 0.3s;
+        }
+
+        .close-btn:hover {
+            background: #d4af37;
+            color: #2c1d11;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="album-container">
+        <button class="nav-btn" id="prevBtn">&#10094;</button>
+        <button class="nav-btn" id="nextBtn">&#10095;</button>
+
+        <div class="album" id="album">
+            
+            <div class="page" style="z-index: 5;">
+                <div class="front cover-front">
+                    <div>
+                        <h1>Memórias<br><span style="font-size: 1.1rem; font-weight: normal; color: #b5942b; letter-spacing: 2px;">COLEÇÃO PRIVADA</span></h1>
+                    </div>
+                </div>
+                <div class="back">
+                    <div class="photo-holder" style="--r: -3deg;">
+                        <img src="https://via.placeholder.com/400x300/5a4d41/ffffff?text=Foto+01" alt="Foto 1">
+                    </div>
+                    <div class="photo-holder" style="--r: 2deg;">
+                        <img src="https://via.placeholder.com/400x300/4a3c31/ffffff?text=Foto+02" alt="Foto 2">
+                    </div>
+                </div>
+            </div>
+
+            <div class="page" style="z-index: 4;">
+                <div class="front">
+                    <div class="photo-holder" style="--r: 1deg;">
+                        <img src="https://via.placeholder.com/400x300/5a4d41/ffffff?text=Foto+03" alt="Foto 3">
+                    </div>
+                    <div class="photo-holder" style="--r: -4deg;">
+                        <img src="https://via.placeholder.com/400x300/4a3c31/ffffff?text=Foto+04" alt="Foto 4">
+                    </div>
+                </div>
+                <div class="back">
+                    <div class="photo-holder" style="--r: -2deg;">
+                        <img src="https://via.placeholder.com/400x300/5a4d41/ffffff?text=Foto+05" alt="Foto 5">
+                    </div>
+                    <div class="photo-holder" style="--r: 3deg;">
+                        <img src="https://via.placeholder.com/400x300/4a3c31/ffffff?text=Foto+06" alt="Foto 6">
+                    </div>
+                </div>
+            </div>
+
+            <div class="page" style="z-index: 3;">
+                <div class="front">
+                    <div class="photo-holder" style="--r: 2deg;">
+                        <img src="https://via.placeholder.com/400x300/5a4d41/ffffff?text=Foto+07" alt="Foto 7">
+                    </div>
+                    <div class="photo-holder" style="--r: -2deg;">
+                        <img src="https://via.placeholder.com/400x300/4a3c31/ffffff?text=Foto+08" alt="Foto 8">
+                    </div>
+                </div>
+                <div class="back">
+                    <div class="photo-holder" style="--r: -1deg;">
+                        <img src="https://via.placeholder.com/400x300/5a4d41/ffffff?text=Foto+09" alt="Foto 9">
+                    </div>
+                    <div class="photo-holder" style="--r: 4deg;">
+                        <img src="https://via.placeholder.com/400x300/4a3c31/ffffff?text=Foto+10" alt="Foto 10">
+                    </div>
+                </div>
+            </div>
+
+            <div class="page" style="z-index: 2;">
+                <div class="front">
+                    <div class="photo-holder" style="--r: 3deg;">
+                        <img src="https://via.placeholder.com/400x300/5a4d41/ffffff?text=Foto+11" alt="Foto 11">
+                    </div>
+                    <div class="photo-holder" style="--r: -3deg;">
+                        <img src="https://via.placeholder.com/400x300/4a3c31/ffffff?text=Foto+12" alt="Foto 12">
+                    </div>
+                </div>
+                <div class="back cover-back"></div>
+            </div>
+
+        </div>
+    </div>
+
+    <div class="lightbox" id="lightbox">
+        <div class="lightbox-content">
+            <img src="" id="lightboxImg" alt="Zoom Foto">
+            <button class="close-btn" id="closeBtn">Voltar</button>
+        </div>
+    </div>
+
+    <script>
+        const pages = document.querySelectorAll('.page');
+        const album = document.getElementById('album');
+        const prevBtn = document.getElementById('prevBtn');
+        const nextBtn = document.getElementById('nextBtn');
+        
+        const lightbox = document.getElementById('lightbox');
+        const lightboxImg = document.getElementById('lightboxImg');
+        const closeBtn = document.getElementById('closeBtn');
+
+        let currentPage = 0;
+        const totalPages = pages.length;
+
+        function updateZIndices() {
+            pages.forEach((page, index) => {
+                if (index < currentPage) {
+                    page.style.zIndex = index;
+                } else {
+                    page.style.zIndex = totalPages - index;
+                }
+            });
+        }
+
+        function openAlbum() { album.classList.add('opened'); }
+        function closeAlbum() { album.classList.remove('opened'); }
+
+        nextBtn.addEventListener('click', () => {
+            if (currentPage < totalPages) {
+                if (currentPage === 0) openAlbum();
+                pages[currentPage].classList.add('flipped');
+                currentPage++;
+                updateZIndices();
+            }
+        });
+
+        prevBtn.addEventListener('click', () => {
+            if (currentPage > 0) {
+                currentPage--;
+                pages[currentPage].classList.remove('flipped');
+                if (currentPage === 0) closeAlbum();
+                updateZIndices();
+            }
+        });
+
+        // Zoom-in
+        const photos = document.querySelectorAll('.photo-holder img');
+        photos.forEach(photo => {
+            photo.parentElement.addEventListener('click', () => {
+                lightboxImg.src = photo.src;
+                lightbox.classList.add('active');
+            });
+        });
+
+        // Voltar do Zoom
+        closeBtn.addEventListener('click', () => { lightbox.classList.remove('active'); });
+        lightbox.addEventListener('click', (e) => {
+            if (e.target === lightbox) lightbox.classList.remove('active');
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Drone Simulator - Mouse & Keyboard Control</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: #78a7ff;
+            font-family: 'Courier New', Courier, monospace;
+        }
+        #canvas-container {
+            width: 100vw;
+            height: 100vh;
+        }
+        #ui {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            color: white;
+            text-shadow: 2px 2px 0px #000;
+            font-size: 16px;
+            pointer-events: none;
+            background: rgba(0, 0, 0, 0.4);
+            padding: 15px;
+            border: 4px solid #3b3b3b;
+            image-rendering: pixelated;
+        }
+        h2 { margin: 0 0 10px 0; font-size: 20px; color: #55ff55; }
+        ul { margin: 0; padding-left: 20px; }
+        li { margin: 5px 0; }
+        #blocker {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: white;
+            font-size: 24px;
+            cursor: pointer;
+            text-align: center;
+            text-shadow: 2px 2px 0px #000;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="blocker">
+        <div>
+            <h1 style="color: #55ff55;">CLIQUE PARA JOGAR</h1>
+            <p style="font-size: 16px;">Mova o Mouse para Girar / Inclinar o Drone<br>W / S / A / D : Mover | Espaço / Shift : Subir e Descer</p>
+        </div>
+    </div>
+
+    <div id="ui">
+        <h2>Controles do Drone</h2>
+        <ul>
+            <li><strong>Mouse X</strong> : Rotacionar (Guinada)</li>
+            <li><strong>Mouse Y</strong> : Inclinar para Frente / Trás</li>
+            <li><strong>W / S</strong> : Impulso para Frente / Trás</li>
+            <li><strong>A / D</strong> : Deslocamento Lateral (Strafing)</li>
+            <li><strong>Espaço / Shift</strong> : Subir / Descer</li>
+        </ul>
+    </div>
+
+    <div id="canvas-container"></div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script>
+        // --- CONFIGURAÇÃO DA CENA ---
+        const container = document.getElementById('canvas-container');
+        const blocker = document.getElementById('blocker');
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x78a7ff);
+        scene.fog = new THREE.FogExp2(0x78a7ff, 0.015);
+
+        const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.shadowMap.enabled = true;
+        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        container.appendChild(renderer.domElement);
+
+        // --- ILUMINAÇÃO ---
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+        scene.add(ambientLight);
+
+        const sunLight = new THREE.DirectionalLight(0xffffff, 0.8);
+        sunLight.position.set(50, 100, 50);
+        sunLight.castShadow = true;
+        sunLight.shadow.mapSize.width = 2048;
+        sunLight.shadow.mapSize.height = 2048;
+        scene.add(sunLight);
+
+        // --- GERAÇÃO DO MUNDO (MINECRAFT) ---
+        function createBlockTexture(colorHex, detailColorHex) {
+            const canvas = document.createElement('canvas');
+            canvas.width = 16;
+            canvas.height = 16;
+            const ctx = canvas.getContext('2d');
+            ctx.fillStyle = colorHex;
+            ctx.fillRect(0, 0, 16, 16);
+            for (let i = 0; i < 16; i++) {
+                for (let j = 0; j < 16; j++) {
+                    if (Math.random() > 0.7) {
+                        ctx.fillStyle = detailColorHex;
+                        ctx.fillRect(i, j, 1, 1);
+                    }
+                }
+            }
+            const texture = new THREE.CanvasTexture(canvas);
+            texture.magFilter = THREE.NearestFilter;
+            texture.minFilter = THREE.NearestFilter;
+            return texture;
+        }
+
+        const grassTexture = createBlockTexture('#5b8731', '#4d7328');
+        const dirtTexture = createBlockTexture('#866043', '#573d2a');
+        const stoneTexture = createBlockTexture('#737373', '#5a5a5a');
+
+        const blockGeometry = new THREE.BoxGeometry(1, 1, 1);
+        const instancedGrass = new THREE.InstancedMesh(blockGeometry, new THREE.MeshLambertMaterial({ map: grassTexture }), 2500);
+        instancedGrass.castShadow = true;
+        instancedGrass.receiveShadow = true;
+
+        let instanceIdx = 0;
+        const dummy = new THREE.Object3D();
+
+        for (let x = -25; x < 25; x++) {
+            for (let z = -25; z < 25; z++) {
+                dummy.position.set(x, 0, z);
+                dummy.updateMatrix();
+                instancedGrass.setMatrixAt(instanceIdx++, dummy.matrix);
+
+                if ((x % 7 === 0 && z % 6 === 0) && (x !== 0 || z !== 0)) {
+                    const height = Math.floor(Math.random() * 4) + 2;
+                    for (let h = 1; h <= height; h++) {
+                        const obsMesh = new THREE.Mesh(blockGeometry, new THREE.MeshLambertMaterial({ map: Math.random() > 0.5 ? stoneTexture : dirtTexture }));
+                        obsMesh.position.set(x, h, z);
+                        obsMesh.castShadow = true;
+                        obsMesh.receiveShadow = true;
+                        scene.add(obsMesh);
+                    }
+                }
+            }
+        }
+        scene.add(instancedGrass);
+
+        // --- CRIAÇÃO DO DRONE ---
+        const droneGroup = new THREE.Group();
+        droneGroup.position.set(0, 3, 0);
+        scene.add(droneGroup);
+
+        const droneMat = new THREE.MeshStandardMaterial({ color: 0x222222, roughness: 0.5 });
+        const rotorMat = new THREE.MeshStandardMaterial({ color: 0xcc0000 });
+        const ledMat = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
+
+        const bodyMesh = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.2, 0.8), droneMat);
+        bodyMesh.castShadow = true;
+        droneGroup.add(bodyMesh);
+
+        const eyeMesh = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.1, 0.1), ledMat);
+        eyeMesh.position.set(0, 0, -0.41);
+        droneGroup.add(eyeMesh);
+
+        const arm1 = new THREE.Mesh(new THREE.BoxGeometry(1.4, 0.05, 0.1), droneMat);
+        arm1.rotation.y = Math.PI / 4;
+        droneGroup.add(arm1);
+        const arm2 = arm1.clone();
+        arm2.rotation.y = -Math.PI / 4;
+        droneGroup.add(arm2);
+
+        const propellers = [];
+        const propGeo = new THREE.BoxGeometry(0.5, 0.02, 0.05);
+        const propPositions = [[0.5, 0.1, 0.5], [-0.5, 0.1, 0.5], [0.5, 0.1, -0.5], [-0.5, 0.1, -0.5]];
+
+        propPositions.forEach(pos => {
+            const propHolder = new THREE.Group();
+            propHolder.position.set(pos[0], pos[1], pos[2]);
+            const propMesh = new THREE.Mesh(propGeo, rotorMat);
+            propHolder.add(propMesh);
+            droneGroup.add(propHolder);
+            proppropGrid = propellers.push(propMesh);
+        });
+
+        // --- SISTEMA DE CAPTURA DO MOUSE (POINTER LOCK) ---
+        let isLocked = false;
+        blocker.addEventListener('click', () => {
+            document.body.requestPointerLock();
+        });
+
+        document.addEventListener('pointerlockchange', () => {
+            if (document.pointerLockElement === document.body) {
+                blocker.style.display = 'none';
+                isLocked = true;
+            } else {
+                blocker.style.display = 'flex';
+                isLocked = false;
+            }
+        });
+
+        // --- INPUTS (TECLADO E MOUSE) ---
+        const keys = { w: false, a: false, s: false, d: false, Space: false, ShiftLeft: false };
+        let mouseMoveX = 0;
+        let mouseMoveY = 0;
+
+        window.addEventListener('keydown', (e) => {
+            let key = e.code === "Space" || e.code === "ShiftLeft" ? e.code : e.key.toLowerCase();
+            if (key in keys) keys[key] = true;
+        });
+
+        window.addEventListener('keyup', (e) => {
+            let key = e.code === "Space" || e.code === "ShiftLeft" ? e.code : e.key.toLowerCase();
+            if (key in keys) keys[key] = false;
+        });
+
+        window.addEventListener('mousemove', (e) => {
+            if (!isLocked) return;
+            // Captura o delta do movimento físico do mouse
+            mouseMoveX = e.movementX;
+            mouseMoveY = e.movementY;
+        });
+
+        // --- FÍSICA E LOOP DE MOVIMENTO ---
+        const velocity = new THREE.Vector3();
+        let targetPitch = 0; // Inclinação para frente/trás ditada pelo mouse
+        
+        const ACCELERATION = 18.0;
+        const DRAG = 4.0;
+        const MOUSE_SENSITIVITY = 0.0025;
+
+        const clock = new THREE.Clock();
+
+        function animate() {
+            requestAnimationFrame(animate);
+
+            const delta = clock.getDelta();
+            if (delta > 0.1) return;
+
+            // Direções locais baseadas no rumo atual do drone
+            const forward = new THREE.Vector3(0, 0, -1).applyQuaternion(droneGroup.quaternion);
+            const right = new THREE.Vector3(1, 0, 0).applyQuaternion(droneGroup.quaternion);
+            const up = new THREE.Vector3(0, 1, 0);
+
+            if (isLocked) {
+                // 1. Mouse X rotaciona o drone sobre o próprio eixo Y (Guinada/Yaw)
+                droneGroup.rotation.y -= mouseMoveX * MOUSE_SENSITIVITY * 1.5;
+
+                // 2. Mouse Y calcula a inclinação alvo (Arfagem/Pitch)
+                targetPitch += mouseMoveY * MOUSE_SENSITIVITY * 2.0;
+                targetPitch = Math.max(-0.6, Math.min(0.6, targetPitch)); // Limita o ângulo de inclinação
+
+                // Zera os deltas acumulados do frame atual
+                mouseMoveX = 0;
+                mouseMoveY = 0;
+            }
+
+            // Retorna suavemente o pitch para o centro se não houver comando no mouse (estabilização automática)
+            targetPitch *= Math.exp(-3.0 * delta);
+
+            // 3. Aplicar forças do teclado
+            if (keys.w) velocity.addScaledVector(forward, ACCELERATION * delta);
+            if (keys.s) velocity.addScaledVector(forward, -ACCELERATION * delta);
+            if (keys.d) velocity.addScaledVector(right, ACCELERATION * delta);
+            if (keys.a) velocity.addScaledVector(right, -ACCELERATION * delta);
+            if (keys.Space) velocity.addScaledVector(up, ACCELERATION * delta);
+            if (keys.ShiftLeft) velocity.addScaledVector(up, -ACCELERATION * delta);
+
+            // Força propulsora automática gerada pela inclinação do mouse
+            if (Math.abs(targetPitch) > 0.02) {
+                velocity.addScaledVector(forward, -targetPitch * ACCELERATION * 1.2 * delta);
+            }
+
+            // 4. Atrito/Arrasto aerodinâmico
+            velocity.addScaledVector(velocity, -DRAG * delta);
+
+            // 5. Atualizar transformações do Drone
+            droneGroup.position.addScaledVector(velocity, delta);
+
+            if (droneGroup.position.y < 0.8) {
+                droneGroup.position.y = 0.8;
+                velocity.y = 0;
+            }
+
+            // Aplica inclinações visuais e físicas no corpo do drone
+            const localVelX = velocity.dot(right);
+            bodyMesh.rotation.z = -localVelX * 0.05; // Roll baseado no movimento lateral
+            bodyMesh.rotation.x = targetPitch + (velocity.dot(forward) * 0.02); // Pitch baseado no mouse + velocidade
+
+            // 6. Hélices girando
+            const propSpeed = 25 + (velocity.length() * 12);
+            propellers.forEach((prop, index) => {
+                prop.rotation.y += (index % 2 === 0 ? propSpeed : -propSpeed) * delta;
+            });
+
+            // 7. Câmera Suave em Terceira Pessoa (Seguindo a traseira do drone)
+            const targetCameraOffset = new THREE.Vector3(0, 2.0, 5.0).applyQuaternion(droneGroup.quaternion);
+            const targetCameraPosition = droneGroup.position.clone().add(targetCameraOffset);
+            
+            camera.position.lerp(targetCameraPosition, 0.08); // Interpolação suave
+            
+            const lookTarget = droneGroup.position.clone().add(forward.multiplyScalar(0.8));
+            camera.lookAt(lookTarget);
+
+            renderer.render(scene, camera);
+        }
+
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        animate();
+    </script>
+</body>
+</html>
