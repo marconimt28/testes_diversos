@@ -1,0 +1,1533 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ClayStudio 3D - Simulador de Escultura & Torno</title>
+    <!-- Tailwind CSS para Interface Moderna -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Lucide Icons para Ícones Elegantes -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Three.js e Controles -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            background-color: #0f0f11;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+        /* Bloqueia gestos padrão do navegador para não atrapalhar a escultura */
+        canvas {
+            touch-action: none;
+        }
+        /* Custom scrollbar para o painel */
+        .custom-scroll::-webkit-scrollbar {
+            width: 6px;
+        }
+        .custom-scroll::-webkit-scrollbar-track {
+            background: rgba(0, 0, 0, 0.1);
+        }
+        .custom-scroll::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 3px;
+        }
+        .custom-scroll::-webkit-scrollbar-thumb:hover {
+            background: rgba(255, 255, 255, 0.4);
+        }
+    </style>
+</head>
+<body class="text-slate-100 font-sans antialiased selection:bg-indigo-500 selection:text-white">
+
+    <!-- Container do Canvas 3D -->
+    <div id="canvas-container" class="w-screen h-screen absolute inset-0 z-0"></div>
+
+    <!-- UI - Barra de Navegação Superior / Logo -->
+    <div class="absolute top-4 left-4 z-10 flex items-center gap-3 bg-slate-900/80 backdrop-blur-md border border-slate-800 px-4 py-2.5 rounded-full shadow-2xl">
+        <div class="w-8 h-8 rounded-full bg-gradient-to-tr from-indigo-500 to-pink-500 flex items-center justify-center shadow-lg shadow-indigo-500/30">
+            <i data-lucide="palette" class="w-4 h-4 text-white"></i>
+        </div>
+        <div>
+            <h1 class="text-sm font-bold tracking-wider uppercase text-white bg-clip-text">ClayStudio 3D Pro</h1>
+            <p class="text-[10px] text-slate-400 font-medium -mt-1">by Marconi Maciel</p>
+        </div>
+    </div>
+
+    <!-- UI - Painel de Controle Lateral Esquerdo -->
+    <div id="ui-panel" class="absolute top-20 left-4 z-10 w-80 max-h-[calc(100vh-120px)] overflow-y-auto custom-scroll bg-slate-950/85 backdrop-blur-xl border border-slate-800/80 p-5 rounded-2xl shadow-2xl flex flex-col gap-5 transition-all duration-300">
+        
+        <!-- Seção: Pincéis e Pintura -->
+        <div>
+            <div class="flex items-center gap-2 mb-3">
+                <i data-lucide="brush" class="w-4 h-4 text-indigo-400"></i>
+                <h3 class="text-xs font-bold uppercase tracking-wider text-slate-300">Ferramenta Ativa</h3>
+            </div>
+            <div class="grid grid-cols-2 gap-2 mb-3">
+                <button id="btn-add" class="flex flex-col items-center justify-center p-2 rounded-xl border border-slate-800 bg-slate-900 hover:bg-slate-800 transition" onclick="setBrushMode('add')">
+                    <i data-lucide="plus-circle" class="w-4 h-4 mb-1 text-emerald-400"></i>
+                    <span class="text-[10px] font-semibold">Adicionar</span>
+                </button>
+                <button id="btn-sub" class="flex flex-col items-center justify-center p-2 rounded-xl border border-slate-800 bg-slate-900 hover:bg-slate-800 transition" onclick="setBrushMode('sub')">
+                    <i data-lucide="minus-circle" class="w-4 h-4 mb-1 text-rose-400"></i>
+                    <span class="text-[10px] font-semibold">Subtrair</span>
+                </button>
+                <button id="btn-smooth" class="flex flex-col items-center justify-center p-2 rounded-xl border border-slate-800 bg-slate-900 hover:bg-slate-800 transition" onclick="setBrushMode('smooth')">
+                    <i data-lucide="wind" class="w-4 h-4 mb-1 text-sky-400"></i>
+                    <span class="text-[10px] font-semibold">Suavizar</span>
+                </button>
+                <button id="btn-flatten" class="flex flex-col items-center justify-center p-2 rounded-xl border border-slate-800 bg-slate-900 hover:bg-slate-800 transition" onclick="setBrushMode('flatten')">
+                    <i data-lucide="layers" class="w-4 h-4 mb-1 text-amber-400"></i>
+                    <span class="text-[10px] font-semibold">Achatar</span>
+                </button>
+                <button id="btn-spatula" class="flex flex-col items-center justify-center p-2 rounded-xl border border-slate-800 bg-slate-900 hover:bg-slate-800 transition" onclick="setBrushMode('spatula')">
+                    <i data-lucide="scissors" class="w-4 h-4 mb-1 text-indigo-400"></i>
+                    <span class="text-[10px] font-semibold">Espátula</span>
+                </button>
+                <button id="btn-gouge" class="flex flex-col items-center justify-center p-2 rounded-xl border border-slate-800 bg-slate-900 hover:bg-slate-800 transition" onclick="setBrushMode('gouge')">
+                    <i data-lucide="circle-dot" class="w-4 h-4 mb-1 text-fuchsia-400"></i>
+                    <span class="text-[10px] font-semibold">Goiva (Furar)</span>
+                </button>
+                <!-- FERRAMENTA: PINTAR -->
+                <button id="btn-paint" class="flex flex-col items-center justify-center p-2 rounded-xl border border-slate-800 bg-slate-900 hover:bg-slate-800 transition col-span-2" onclick="setBrushMode('paint')">
+                    <div class="flex items-center gap-1.5 mb-0.5">
+                        <i data-lucide="paint-brush" class="w-4 h-4 text-pink-400"></i>
+                        <span class="text-[10px] font-bold text-pink-300">Pintar Esmalte</span>
+                    </div>
+                </button>
+            </div>
+
+            <!-- Paleta de Cores -->
+            <div id="color-palette" class="hidden flex-col gap-2 bg-slate-900/60 p-2.5 rounded-xl border border-slate-800">
+                <label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Paleta de Esmaltes</label>
+                <div class="grid grid-cols-7 gap-1.5">
+                    <button class="w-7 h-7 rounded-full bg-red-500 border-2 border-white" onclick="changePaintColor('#ef4444', this)"></button>
+                    <button class="w-7 h-7 rounded-full bg-orange-500 border border-transparent" onclick="changePaintColor('#f97316', this)"></button>
+                    <button class="w-7 h-7 rounded-full bg-yellow-500 border border-transparent" onclick="changePaintColor('#eab308', this)"></button>
+                    <button class="w-7 h-7 rounded-full bg-emerald-500 border border-transparent" onclick="changePaintColor('#10b981', this)"></button>
+                    <button class="w-7 h-7 rounded-full bg-sky-500 border border-transparent" onclick="changePaintColor('#0ea5e9', this)"></button>
+                    <button class="w-7 h-7 rounded-full bg-indigo-500 border border-transparent" onclick="changePaintColor('#6366f1', this)"></button>
+                    <button class="w-7 h-7 rounded-full bg-white border border-transparent" onclick="changePaintColor('#ffffff', this)"></button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Seção: Adicionar Novas Formas Livres -->
+        <div class="border-t border-slate-800/80 pt-4 flex flex-col gap-3">
+            <div class="flex items-center gap-2">
+                <i data-lucide="plus-circle" class="w-4 h-4 text-emerald-400"></i>
+                <span class="text-xs font-bold text-slate-300 uppercase tracking-wider">Adicionar Forma Livre</span>
+            </div>
+            <div class="grid grid-cols-4 gap-1.5">
+                <button id="btn-add-sphere" class="p-2 rounded-xl border border-slate-800/60 bg-slate-900/50 hover:bg-slate-800/60 text-slate-400 transition flex flex-col items-center gap-1 text-[10px] font-semibold" onclick="activatePlacementMode('sphere')">
+                    <i data-lucide="circle" class="w-4 h-4 text-emerald-400"></i>Esfera
+                </button>
+                <button id="btn-add-cube" class="p-2 rounded-xl border border-slate-800/60 bg-slate-900/50 hover:bg-slate-800/60 text-slate-400 transition flex flex-col items-center gap-1 text-[10px] font-semibold" onclick="activatePlacementMode('cube')">
+                    <i data-lucide="square" class="w-4 h-4 text-emerald-400"></i>Cubo
+                </button>
+                <button id="btn-add-cylinder" class="p-2 rounded-xl border border-slate-800/60 bg-slate-900/50 hover:bg-slate-800/60 text-slate-400 transition flex flex-col items-center gap-1 text-[10px] font-semibold" onclick="activatePlacementMode('cylinder')">
+                    <i data-lucide="database" class="w-4 h-4 text-emerald-400"></i>Cilindro
+                </button>
+                <button id="btn-add-torus" class="p-2 rounded-xl border border-slate-800/60 bg-slate-900/50 hover:bg-slate-800/60 text-slate-400 transition flex flex-col items-center gap-1 text-[10px] font-semibold" onclick="activatePlacementMode('torus')">
+                    <i data-lucide="disc" class="w-4 h-4 text-emerald-400"></i>Toro
+                </button>
+            </div>
+            <!-- Slider para tamanho da nova forma livre -->
+            <div>
+                <div class="flex justify-between items-center mb-1">
+                    <label class="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Tamanho da Nova Forma</label>
+                    <span id="val-new-shape-scale" class="text-xs font-bold text-indigo-400 bg-indigo-950/50 px-2 py-0.5 rounded border border-indigo-900/30">0.40</span>
+                </div>
+                <input type="range" id="new-shape-scale" min="0.1" max="1.2" step="0.05" value="0.4" class="w-full accent-indigo-500 bg-slate-900 rounded-lg cursor-pointer h-1.5" oninput="updateNewShapeScale()">
+            </div>
+            <!-- Botão para cancelar colocação -->
+            <button id="btn-cancel-placement" class="hidden w-full py-2 rounded-xl border border-rose-900/40 bg-rose-950/20 hover:bg-rose-900/40 text-rose-300 text-xs font-bold transition flex items-center justify-center gap-1.5 animate-pulse" onclick="deactivatePlacementMode()">
+                <i data-lucide="x-circle" class="w-3.5 h-3.5"></i> Cancelar Colocação
+            </button>
+        </div>
+
+        <!-- Seção: Processo Cerâmico (Borrifar & Queimar) -->
+        <div class="border-t border-slate-800/80 pt-4 flex flex-col gap-2.5">
+            <div class="flex items-center gap-2">
+                <i data-lucide="flame" class="w-4 h-4 text-orange-400"></i>
+                <span class="text-xs font-bold text-slate-300 uppercase tracking-wider">Processo de Esmaltação</span>
+            </div>
+            <div class="grid grid-cols-2 gap-2">
+                <!-- Borrifador de Água (Global Smooth) -->
+                <button class="flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl border border-sky-900/40 bg-sky-950/20 hover:bg-sky-900/40 text-sky-300 text-xs font-semibold transition" onclick="sprayWater()">
+                    <i data-lucide="droplet" class="w-3.5 h-3.5"></i> Borrifar Água
+                </button>
+                <!-- Forno de Queima (Vitrificação) -->
+                <button id="btn-fire-kiln" class="flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl border border-orange-950 bg-gradient-to-r from-orange-600 to-amber-500 hover:from-orange-500 text-white text-xs font-bold transition shadow-lg shadow-orange-950/40" onclick="fireKiln()">
+                    <i data-lucide="flame" class="w-3.5 h-3.5"></i> Queimar Vaso
+                </button>
+            </div>
+        </div>
+
+        <!-- Seção: Torno de Oleiro -->
+        <div class="border-t border-slate-800/80 pt-4 flex flex-col gap-3">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                    <i data-lucide="disc" class="w-4 h-4 text-indigo-400 animate-spin" style="animation-duration: 3s;"></i>
+                    <span class="text-xs font-bold text-slate-300 uppercase tracking-wider">Torno de Oleiro</span>
+                </div>
+                <button id="btn-wheel" class="relative inline-flex h-6 w-11 items-center rounded-full bg-slate-800 transition-colors focus:outline-none" onclick="togglePotteryWheel()">
+                    <span class="sr-only">Ativar Torno</span>
+                    <span id="wheel-indicator" class="inline-block h-4 w-4 transform rounded-full bg-slate-400 transition-transform translate-x-1"></span>
+                </button>
+            </div>
+            <div id="wheel-controls" class="hidden flex-col gap-2">
+                <div class="flex justify-between items-center">
+                    <label class="text-[11px] text-slate-400">Velocidade de Rotação</label>
+                    <span id="val-wheel-speed" class="text-xs font-bold text-indigo-400">1.00x</span>
+                </div>
+                <input type="range" id="wheel-speed" min="0.2" max="3.0" step="0.1" value="1.0" class="w-full accent-indigo-500 bg-slate-900 rounded-lg cursor-pointer h-1.5" oninput="updateWheelSpeed()">
+            </div>
+        </div>
+
+        <!-- Seção: Ajustes de Tamanho e Força -->
+        <div class="border-t border-slate-800/80 pt-4 flex flex-col gap-4">
+            <div>
+                <div class="flex justify-between items-center mb-1">
+                    <label class="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Tamanho do Pincel / Espátula</label>
+                    <span id="val-radius" class="text-xs font-bold text-indigo-400 bg-indigo-950/50 px-2 py-0.5 rounded border border-indigo-900/30">0.50</span>
+                </div>
+                <input type="range" id="brush-radius" min="0.1" max="1.5" step="0.02" value="0.5" class="w-full accent-indigo-500 bg-slate-900 rounded-lg cursor-pointer h-1.5" oninput="updateBrushParams()">
+            </div>
+
+            <div>
+                <div class="flex justify-between items-center mb-1">
+                    <label class="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Intensidade / Força</label>
+                    <span id="val-strength" class="text-xs font-bold text-indigo-400 bg-indigo-950/50 px-2 py-0.5 rounded border border-indigo-900/30">0.15</span>
+                </div>
+                <input type="range" id="brush-strength" min="0.02" max="0.6" step="0.01" value="0.15" class="w-full accent-indigo-500 bg-slate-900 rounded-lg cursor-pointer h-1.5" oninput="updateBrushParams()">
+            </div>
+        </div>
+
+        <!-- Seção: Elementos e Adereços (Alças e Guias) -->
+        <div class="border-t border-slate-800/80 pt-4 flex flex-col gap-3.5">
+            <div class="flex items-center gap-2">
+                <i data-lucide="plus-square" class="w-4 h-4 text-indigo-400"></i>
+                <span class="text-xs font-bold text-slate-300 uppercase tracking-wider">Adereços & Guias</span>
+            </div>
+            <!-- Botão de Adicionar Alças -->
+            <button class="w-full py-2 px-3 rounded-xl border border-indigo-800/40 bg-indigo-950/20 hover:bg-indigo-900/40 text-indigo-300 text-xs font-bold transition flex items-center justify-center gap-1.5" onclick="attachSymmetricalHandles()">
+                <i data-lucide="award" class="w-4 h-4"></i> Adicionar Alças Laterais
+            </button>
+            <!-- Seletor de Molde Guia -->
+            <div>
+                <label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1 block">Molde de Referência (Guia)</label>
+                <select id="blueprint-select" class="w-full bg-slate-900 border border-slate-800 text-slate-200 text-xs rounded-xl p-2.5 focus:outline-none focus:border-indigo-500" onchange="changeBlueprintGuide()">
+                    <option value="none">Sem Guia de Contorno</option>
+                    <option value="anfora">Ânfora Grega Clássica</option>
+                    <option value="vaso">Vaso de Flores Simples</option>
+                    <option value="calice">Cálice Real</option>
+                </select>
+            </div>
+        </div>
+
+        <!-- Seção: Simetria e Utilitários -->
+        <div class="border-t border-slate-800/80 pt-4 flex flex-col gap-3">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                    <i data-lucide="columns" class="w-4 h-4 text-indigo-400"></i>
+                    <span class="text-xs font-bold text-slate-300 uppercase tracking-wider">Simetria (Eixo X)</span>
+                </div>
+                <button id="btn-symmetry" class="relative inline-flex h-6 w-11 items-center rounded-full bg-slate-800 transition-colors focus:outline-none" onclick="toggleSymmetry()">
+                    <span class="sr-only">Simetria</span>
+                    <span id="toggle-indicator" class="inline-block h-4 w-4 transform rounded-full bg-slate-400 transition-transform translate-x-1"></span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Seção: Malha Inicial e Escala -->
+        <div class="border-t border-slate-800/80 pt-4 flex flex-col gap-4">
+            <div class="flex items-center gap-2">
+                <i data-lucide="box" class="w-4 h-4 text-indigo-400"></i>
+                <span class="text-xs font-bold text-slate-300 uppercase tracking-wider">Forma Inicial & Escala</span>
+            </div>
+            <div>
+                <select id="shape-select" class="w-full bg-slate-900 border border-slate-800 text-slate-200 text-xs rounded-xl p-2.5 focus:outline-none focus:border-indigo-500 mb-3" onchange="changeBaseShape()">
+                    <option value="cylinder">Cilindro (Ideal para Jarros)</option>
+                    <option value="sphere">Esfera (Argila Redonda)</option>
+                    <option value="cube">Cubo (Argila Quadrada)</option>
+                    <option value="torus">Toro (Donut)</option>
+                </select>
+            </div>
+            <div>
+                <div class="flex justify-between items-center mb-1">
+                    <label class="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Escala da Malha</label>
+                    <span id="val-mesh-scale" class="text-xs font-bold text-indigo-400 bg-indigo-950/50 px-2 py-0.5 rounded border border-indigo-900/30">1.00</span>
+                </div>
+                <input type="range" id="mesh-scale" min="0.5" max="2.5" step="0.05" value="1.0" class="w-full accent-indigo-500 bg-slate-900 rounded-lg cursor-pointer h-1.5" oninput="updateMeshScale()">
+            </div>
+        </div>
+
+        <!-- Seção: Estúdio de Materiais (Visual) -->
+        <div class="border-t border-slate-800/80 pt-4 flex flex-col gap-3">
+            <div class="flex items-center gap-2">
+                <i data-lucide="sparkles" class="w-4 h-4 text-indigo-400"></i>
+                <span class="text-xs font-bold text-slate-300 uppercase tracking-wider">Material de Estúdio</span>
+            </div>
+            <div class="grid grid-cols-3 gap-1.5" id="material-grid">
+                <!-- Gerado por JS para incluir cores bonitas -->
+            </div>
+        </div>
+
+        <!-- Seção: Histórico e Ações -->
+        <div class="border-t border-slate-800/80 pt-4 flex flex-col gap-2">
+            <div class="grid grid-cols-2 gap-2">
+                <button id="btn-undo" class="flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl border border-slate-800 bg-slate-900 hover:bg-slate-800 text-xs font-semibold disabled:opacity-40 disabled:hover:bg-slate-900 transition" onclick="undo()" disabled>
+                    <i data-lucide="undo" class="w-3.5 h-3.5"></i> Desfazer
+                </button>
+                <button id="btn-redo" class="flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl border border-slate-800 bg-slate-900 hover:bg-slate-800 text-xs font-semibold disabled:opacity-40 disabled:hover:bg-slate-900 transition" onclick="redo()" disabled>
+                    <i data-lucide="redo" class="w-3.5 h-3.5"></i> Refazer
+                </button>
+            </div>
+            <button class="w-full py-2.5 px-4 rounded-xl border border-rose-900/30 bg-rose-950/20 hover:bg-rose-900/40 text-rose-300 text-xs font-bold transition flex items-center justify-center gap-1.5" onclick="resetSculpture()">
+                <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i> Resetar Escultura
+            </button>
+        </div>
+    </div>
+
+    <!-- Painel de Exportação e Atalhos Direito -->
+    <div class="absolute top-4 right-4 z-10 flex flex-col gap-2">
+        <button class="flex items-center gap-2 py-3 px-5 rounded-2xl bg-gradient-to-r from-indigo-600 to-indigo-500 hover:from-indigo-500 hover:to-indigo-400 text-white font-bold text-xs shadow-lg shadow-indigo-600/30 hover:shadow-indigo-500/40 transition active:scale-95" onclick="exportToOBJ()">
+            <i data-lucide="download" class="w-4 h-4"></i> Exportar Malha (.OBJ)
+        </button>
+    </div>
+
+    <!-- UI: Controles Especiais para Mobile/Touch e Estado de Câmera -->
+    <div class="absolute bottom-4 left-4 z-10 flex flex-col gap-2 md:flex-row md:items-center">
+        <!-- Alternador de modo de toque em telas móveis -->
+        <div id="mobile-mode-container" class="bg-slate-950/90 backdrop-blur-md border border-slate-800 p-1.5 rounded-xl flex shadow-xl">
+            <button id="btn-touch-sculpt" class="px-3.5 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 bg-indigo-500 text-white" onclick="setTouchMode('sculpt')">
+                <i data-lucide="paint-brush" class="w-3.5 h-3.5"></i> Pintar/Esculpir
+            </button>
+            <button id="btn-touch-camera" class="px-3.5 py-1.5 rounded-lg text-xs font-bold text-slate-400 transition flex items-center gap-1.5" onclick="setTouchMode('camera')">
+                <i data-lucide="move" class="w-3.5 h-3.5"></i> Mover Câmera
+            </button>
+        </div>
+    </div>
+
+    <!-- Rodapé de Instruções Centralizado -->
+    <div class="hidden lg:flex absolute bottom-4 left-1/2 -translate-x-1/2 z-10 bg-slate-950/90 backdrop-blur-md border border-slate-800 px-4 py-2 rounded-full shadow-2xl items-center gap-4 text-xs text-slate-400 font-medium">
+        <span class="flex items-center gap-1.5"><kbd class="px-1.5 py-0.5 bg-slate-800 border border-slate-700 rounded text-[10px] text-slate-200">Botão Esquerdo</kbd> Esculpir / Pintar</span>
+        <span class="text-slate-600">|</span>
+        <span class="flex items-center gap-1.5"><kbd class="px-1.5 py-0.5 bg-slate-800 border border-slate-700 rounded text-[10px] text-slate-200">Botão Direito</kbd> Girar Câmera</span>
+        <span class="text-slate-600">|</span>
+        <span class="flex items-center gap-1.5"><kbd class="px-1.5 py-0.5 bg-slate-800 border border-slate-700 rounded text-[10px] text-slate-200">Scroll</kbd> Zoom</span>
+    </div>
+
+    <script>
+        // --- Inicializar Ícones do Lucide ---
+        lucide.createIcons();
+
+        // --- Configuração da Cena ---
+        const container = document.getElementById('canvas-container');
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x0e0e11);
+        scene.fog = new THREE.FogExp2(0x0e0e11, 0.08); // Neblina sutil para profundidade
+
+        // Câmera
+        const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 100);
+        camera.position.set(0, 0.5, 5.5);
+
+        // Renderizador
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2)); // Limita a 2 para performance
+        renderer.shadowMap.enabled = true;
+        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        container.appendChild(renderer.domElement);
+
+        // Controles de Câmera Orbitais
+        const controls = new THREE.OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;
+        controls.dampingFactor = 0.07;
+        controls.minDistance = 2;
+        controls.maxDistance = 12;
+        controls.target.set(0, -0.2, 0); // Foca levemente abaixo para melhor visualização do torno
+
+        // Configuração dos botões do mouse (Padrão: Botão Esquerdo Esculpe, Direito Gira)
+        controls.mouseButtons = {
+            LEFT: null, 
+            MIDDLE: THREE.MOUSE.DOLLY,
+            RIGHT: THREE.MOUSE.ROTATE
+        };
+
+        // --- Grupo do Torno de Oleiro (O que gira na cena) ---
+        const wheelGroup = new THREE.Group();
+        scene.add(wheelGroup);
+
+        // --- NOVO: Grupo Dedicado à Argila ---
+        // Isso permite escalar toda a argila unificada (malha principal, alças e formas livres adicionais)
+        // sem alterar a dimensão do torno mecânico abaixo dela!
+        const clayGroup = new THREE.Group();
+        clayGroup.position.y = -1.4; // Define a origem matemática na superfície do prato do torno
+        wheelGroup.add(clayGroup);
+
+        // Mesa fixa sob o torno (Base da oficina de madeira)
+        const tableGeo = new THREE.CylinderGeometry(2.8, 2.8, 0.15, 32);
+        const tableMat = new THREE.MeshStandardMaterial({
+            color: 0x1d1d22,
+            roughness: 0.9,
+            metalness: 0.05
+        });
+        const workshopTable = new THREE.Mesh(tableGeo, tableMat);
+        workshopTable.position.y = -1.6;
+        workshopTable.receiveShadow = true;
+        scene.add(workshopTable);
+
+        // Prato rotativo metálico do torno
+        const platterGeo = new THREE.CylinderGeometry(1.5, 1.5, 0.1, 40);
+        const platterMat = new THREE.MeshStandardMaterial({
+            color: 0x334155, // Metal azulado fosco
+            roughness: 0.5,
+            metalness: 0.8
+        });
+        const wheelPlatter = new THREE.Mesh(platterGeo, platterMat);
+        wheelPlatter.position.y = -1.45;
+        wheelPlatter.castShadow = true;
+        wheelPlatter.receiveShadow = true;
+        wheelGroup.add(wheelPlatter); // Gira junto com a argila
+
+        // --- Iluminação de Estúdio Profissional ---
+        const ambientLight = new THREE.AmbientLight(0x1a1a24, 1.2);
+        scene.add(ambientLight);
+
+        // Luz Direcional Principal (Chave) com sombras suaves
+        const keyLight = new THREE.DirectionalLight(0xffffff, 1.5);
+        keyLight.position.set(5, 8, 5);
+        keyLight.castShadow = true;
+        keyLight.shadow.mapSize.width = 1024;
+        keyLight.shadow.mapSize.height = 1024;
+        keyLight.shadow.bias = -0.001;
+        scene.add(keyLight);
+
+        // Luz de Preenchimento (Cool Fill Light)
+        const fillLight = new THREE.DirectionalLight(0x7c98b3, 0.8);
+        fillLight.position.set(-6, 2, 4);
+        scene.add(fillLight);
+
+        // Luz Traseira de Recorte (Rim Light) para destacar a silhueta
+        const rimLight = new THREE.DirectionalLight(0xf2e3c6, 1.2);
+        rimLight.position.set(0, -5, -6);
+        scene.add(rimLight);
+
+        // --- Definição dos Materiais Estéticos com renderização de Dupla Face (DoubleSide) ---
+        const materialsPreset = {
+            clay: new THREE.MeshStandardMaterial({
+                name: 'Argila',
+                color: 0xa58a78,
+                roughness: 0.85,
+                metalness: 0.05,
+                bumpScale: 0.05,
+                vertexColors: true, // Permite vertex coloring da pintura
+                side: THREE.DoubleSide
+            }),
+            plaster: new THREE.MeshStandardMaterial({
+                name: 'Gesso',
+                color: 0xdedede,
+                roughness: 0.9,
+                metalness: 0.0,
+                vertexColors: true,
+                side: THREE.DoubleSide
+            }),
+            wax: new THREE.MeshStandardMaterial({
+                name: 'Cera',
+                color: 0xb32424,
+                roughness: 0.35,
+                metalness: 0.1,
+                vertexColors: true,
+                side: THREE.DoubleSide
+            }),
+            gold: new THREE.MeshStandardMaterial({
+                name: 'Ouro',
+                color: 0xd4af37,
+                roughness: 0.18,
+                metalness: 0.95,
+                vertexColors: true,
+                side: THREE.DoubleSide
+            }),
+            bronze: new THREE.MeshStandardMaterial({
+                name: 'Bronze',
+                color: 0x6e5033,
+                roughness: 0.45,
+                metalness: 0.8,
+                vertexColors: true,
+                side: THREE.DoubleSide
+            }),
+            jade: new THREE.MeshStandardMaterial({
+                name: 'Jade',
+                color: 0x47a366,
+                roughness: 0.2,
+                metalness: 0.08,
+                emissive: 0x051d0c,
+                vertexColors: true,
+                side: THREE.DoubleSide
+            })
+        };
+
+        let currentMaterialKey = 'clay';
+        let currentMaterial = materialsPreset[currentMaterialKey];
+
+        // Montar Grade de Seleção de Materiais na UI
+        const matGrid = document.getElementById('material-grid');
+        Object.keys(materialsPreset).forEach(key => {
+            const preset = materialsPreset[key];
+            const btn = document.createElement('button');
+            btn.className = `group flex flex-col items-center justify-center p-2 rounded-xl border border-slate-800 bg-slate-900/60 hover:bg-slate-800 transition ${key === currentMaterialKey ? 'border-indigo-500 bg-slate-800' : ''}`;
+            btn.id = `mat-btn-${key}`;
+            btn.onclick = () => selectMaterial(key);
+
+            // Esfera de cor representativa
+            const hexColor = '#' + preset.color.getHexString();
+            btn.innerHTML = `
+                <div class="w-6 h-6 rounded-full shadow-inner mb-1 border border-white/10 group-hover:scale-105 transition duration-200" style="background-color: ${hexColor}"></div>
+                <span class="text-[10px] text-slate-400 group-hover:text-slate-200 transition">${preset.name}</span>
+            `;
+            matGrid.appendChild(btn);
+        });
+
+        function selectMaterial(key) {
+            document.getElementById(`mat-btn-${currentMaterialKey}`).classList.remove('border-indigo-500', 'bg-slate-800');
+            currentMaterialKey = key;
+            document.getElementById(`mat-btn-${currentMaterialKey}`).classList.add('border-indigo-500', 'bg-slate-800');
+            
+            currentMaterial = materialsPreset[key];
+            clayGroup.traverse(child => {
+                if (child.isMesh && child.userData.isClay) {
+                    child.material = currentMaterial;
+                }
+            });
+        }
+
+        // --- Objeto de Escultura (Massa) ---
+        let sculptureMesh;
+        let baseGeometryType = 'cylinder'; 
+        let meshScale = 1.0; 
+        let handleLeftMesh = null;
+        let handleRightMesh = null;
+
+        function createGeometry(type) {
+            switch(type) {
+                case 'sphere':
+                    return new THREE.IcosahedronGeometry(1.4, 5);
+                case 'cube':
+                    return new THREE.BoxGeometry(1.8, 1.8, 1.8, 35, 35, 35);
+                case 'torus':
+                    return new THREE.TorusGeometry(1.0, 0.4, 30, 80);
+                case 'cylinder':
+                default:
+                    return new THREE.CylinderGeometry(0.9, 0.9, 2.2, 40, 40);
+            }
+        }
+
+        function initSculptureMesh() {
+            if (sculptureMesh) {
+                if (handleLeftMesh) sculptureMesh.remove(handleLeftMesh);
+                if (handleRightMesh) sculptureMesh.remove(handleRightMesh);
+                handleLeftMesh = null;
+                handleRightMesh = null;
+            }
+
+            // Limpa todos os elementos antigos do grupo de argila
+            const toRemove = [];
+            clayGroup.children.forEach(child => {
+                toRemove.push(child);
+            });
+            toRemove.forEach(child => clayGroup.remove(child));
+
+            const geom = createGeometry(baseGeometryType);
+            // Agora a translação geométrica do centro é fixa em 1.1, pois a escala global é tratada no grupo pai!
+            geom.translate(0, 1.1, 0); 
+            
+            const colors = [];
+            const positionAttribute = geom.attributes.position;
+            for (let i = 0; i < positionAttribute.count; i++) {
+                colors.push(1, 1, 1); 
+            }
+            geom.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+
+            sculptureMesh = new THREE.Mesh(geom, currentMaterial);
+            sculptureMesh.castShadow = true;
+            sculptureMesh.receiveShadow = true;
+            sculptureMesh.userData.isClay = true;
+            sculptureMesh.userData.type = 'main';
+            sculptureMesh.geometryType = baseGeometryType;
+            
+            // O objeto principal fica na origem local (0, 0, 0) do grupo de argila
+            sculptureMesh.position.set(0, 0, 0);
+            
+            clayGroup.add(sculptureMesh);
+
+            // Atualiza a escala do grupo de argila
+            clayGroup.scale.setScalar(meshScale);
+
+            undoStack = [];
+            redoStack = [];
+            updateUndoRedoButtons();
+            saveHistoryState(); 
+        }
+
+        // --- Histórico Multi-Objeto Integrado ao clayGroup ---
+        let undoStack = [];
+        let redoStack = [];
+        const maxHistoryStates = 20;
+
+        function saveHistoryState() {
+            if (!sculptureMesh) return;
+            const state = [];
+            
+            clayGroup.children.forEach(child => {
+                if (child.isMesh && child.userData.isClay) {
+                    state.push({
+                        id: child.uuid,
+                        geometryType: child.geometryType || 'custom',
+                        type: child.userData.type || 'sub-shape',
+                        position: child.position.clone(),
+                        rotation: child.rotation.clone(),
+                        scale: child.scale.clone(),
+                        positions: new Float32Array(child.geometry.attributes.position.array),
+                        colors: child.geometry.attributes.color ? new Float32Array(child.geometry.attributes.color.array) : null
+                    });
+                }
+            });
+            
+            if (undoStack.length >= maxHistoryStates) {
+                undoStack.shift();
+            }
+            
+            undoStack.push(state);
+            redoStack = []; 
+            updateUndoRedoButtons();
+        }
+
+        function undo() {
+            if (undoStack.length <= 1) return;
+            
+            const currentState = [];
+            clayGroup.children.forEach(child => {
+                if (child.isMesh && child.userData.isClay) {
+                    currentState.push({
+                        id: child.uuid,
+                        geometryType: child.geometryType || 'custom',
+                        type: child.userData.type || 'sub-shape',
+                        position: child.position.clone(),
+                        rotation: child.rotation.clone(),
+                        scale: child.scale.clone(),
+                        positions: new Float32Array(child.geometry.attributes.position.array),
+                        colors: child.geometry.attributes.color ? new Float32Array(child.geometry.attributes.color.array) : null
+                    });
+                }
+            });
+            redoStack.push(currentState);
+            
+            const prevState = undoStack.pop();
+            applyGeometryState(prevState);
+            updateUndoRedoButtons();
+        }
+
+        function redo() {
+            if (redoStack.length === 0) return;
+            
+            const currentState = [];
+            clayGroup.children.forEach(child => {
+                if (child.isMesh && child.userData.isClay) {
+                    currentState.push({
+                        id: child.uuid,
+                        geometryType: child.geometryType || 'custom',
+                        type: child.userData.type || 'sub-shape',
+                        position: child.position.clone(),
+                        rotation: child.rotation.clone(),
+                        scale: child.scale.clone(),
+                        positions: new Float32Array(child.geometry.attributes.position.array),
+                        colors: child.geometry.attributes.color ? new Float32Array(child.geometry.attributes.color.array) : null
+                    });
+                }
+            });
+            undoStack.push(currentState);
+            
+            const nextState = redoStack.pop();
+            applyGeometryState(nextState);
+            updateUndoRedoButtons();
+        }
+
+        function applyGeometryState(state) {
+            const toRemove = [];
+            clayGroup.children.forEach(child => {
+                toRemove.push(child);
+            });
+            toRemove.forEach(child => clayGroup.remove(child));
+
+            handleLeftMesh = null;
+            handleRightMesh = null;
+
+            state.forEach(meshData => {
+                const geom = createGeometry(meshData.geometryType);
+                geom.attributes.position.copyArray(meshData.positions);
+                geom.attributes.position.needsUpdate = true;
+
+                if (meshData.colors) {
+                    geom.setAttribute('color', new THREE.Float32BufferAttribute(meshData.colors, 3));
+                } else {
+                    const colors = [];
+                    for (let i = 0; i < geom.attributes.position.count; i++) colors.push(1, 1, 1);
+                    geom.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+                }
+
+                geom.computeVertexNormals();
+
+                const mesh = new THREE.Mesh(geom, currentMaterial);
+                mesh.uuid = meshData.id;
+                mesh.geometryType = meshData.geometryType;
+                mesh.userData.isClay = true;
+                mesh.userData.type = meshData.type;
+
+                mesh.position.copy(meshData.position);
+                mesh.rotation.copy(meshData.rotation);
+                mesh.scale.copy(meshData.scale);
+                mesh.castShadow = true;
+                mesh.receiveShadow = true;
+
+                if (meshData.type === 'main') {
+                    sculptureMesh = mesh;
+                }
+
+                clayGroup.add(mesh);
+            });
+            
+            const hasHandles = state.some(m => m.hasHandles);
+            if (hasHandles) {
+                attachSymmetricalHandles(false);
+            }
+        }
+
+        function updateUndoRedoButtons() {
+            document.getElementById('btn-undo').disabled = undoStack.length <= 1;
+            document.getElementById('btn-redo').disabled = redoStack.length === 0;
+        }
+
+        // Atalhos de teclado profissionais (Ctrl+Z e Ctrl+Y)
+        window.addEventListener('keydown', (e) => {
+            if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') {
+                e.preventDefault();
+                undo();
+            }
+            if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'y') {
+                e.preventDefault();
+                redo();
+            }
+        });
+
+        initSculptureMesh();
+
+        function changeBaseShape() {
+            baseGeometryType = document.getElementById('shape-select').value;
+            initSculptureMesh();
+        }
+
+        function resetSculpture() {
+            meshScale = 1.0;
+            document.getElementById('mesh-scale').value = "1.0";
+            document.getElementById('val-mesh-scale').innerText = "1.00";
+            initSculptureMesh();
+        }
+
+        // --- CORREÇÃO DO SLIDER DE ESCALA DA MALHA ---
+        // Agora, alterar o tamanho tridimensional altera a escala do 'clayGroup' inteiro.
+        // Como todas as sub-formas pertencem a este grupo, as posições relativas e as escalas
+        // se mantêm perfeitamente proporcionais e alinhadas.
+        function updateMeshScale() {
+            meshScale = parseFloat(document.getElementById('mesh-scale').value);
+            document.getElementById('val-mesh-scale').innerText = meshScale.toFixed(2);
+            if (clayGroup) {
+                clayGroup.scale.setScalar(meshScale);
+            }
+            // Atualiza o tamanho relativo do cursor holográfico de inserção
+            updateNewShapeScale();
+        }
+
+        // --- Visualizadores de Pincel (Cursores Holográficos) ---
+        const cursorGeo = new THREE.SphereGeometry(1, 24, 24);
+        
+        const brushCursor = new THREE.Mesh(cursorGeo, new THREE.MeshBasicMaterial({
+            color: 0x4f46e5,
+            wireframe: true,
+            transparent: true,
+            opacity: 0.35,
+            depthWrite: false
+        }));
+        scene.add(brushCursor);
+
+        const mirrorCursor = new THREE.Mesh(cursorGeo, new THREE.MeshBasicMaterial({
+            color: 0xef4444,
+            wireframe: true,
+            transparent: true,
+            opacity: 0.35,
+            depthWrite: false
+        }));
+        mirrorCursor.visible = false;
+        scene.add(mirrorCursor);
+
+        const symmetryPlane = new THREE.GridHelper(6, 12, 0x4f46e5, 0x334155);
+        symmetryPlane.rotation.z = Math.PI / 2;
+        symmetryPlane.position.x = 0;
+        symmetryPlane.visible = false;
+        scene.add(symmetryPlane);
+
+        // --- Guia de Contorno Blueprint ---
+        let currentBlueprintLine = null;
+
+        function changeBlueprintGuide() {
+            if (currentBlueprintLine) {
+                scene.remove(currentBlueprintLine);
+                currentBlueprintLine = null;
+            }
+
+            const selection = document.getElementById('blueprint-select').value;
+            if (selection === 'none') return;
+
+            const points = [];
+            const heightSteps = 50;
+            const startY = -1.1;
+            const endY = 1.1;
+
+            for (let i = 0; i <= heightSteps; i++) {
+                const t = i / heightSteps;
+                const y = THREE.MathUtils.lerp(startY, endY, t);
+                let r = 0.5;
+
+                if (selection === 'anfora') {
+                    r = 0.7 + 0.35 * Math.sin(t * Math.PI * 1.5) - 0.25 * Math.sin(t * Math.PI * 0.5);
+                } else if (selection === 'vaso') {
+                    r = 0.4 + 0.5 * Math.sin(t * Math.PI * 1.2);
+                } else if (selection === 'calice') {
+                    r = 0.3 + 0.6 * Math.pow(t, 2.5) + 0.45 * Math.pow(1 - t, 4.0);
+                }
+
+                points.push(new THREE.Vector3(r, y, 0));
+            }
+
+            const guideGeom = new THREE.BufferGeometry().setFromPoints(points);
+            const guideMat = new THREE.LineDashedMaterial({
+                color: 0x22d3ee, 
+                dashSize: 0.1,
+                gapSize: 0.05,
+                linewidth: 2
+            });
+
+            const group = new THREE.Group();
+            const rightLine = new THREE.Line(guideGeom, guideMat);
+            rightLine.computeLineDistances();
+            group.add(rightLine);
+
+            const leftPoints = points.map(p => new THREE.Vector3(-p.x, p.y, p.z));
+            const leftGeom = new THREE.BufferGeometry().setFromPoints(leftPoints);
+            const leftLine = new THREE.Line(leftGeom, guideMat);
+            leftLine.computeLineDistances();
+            group.add(leftLine);
+
+            group.position.set(0, -0.3, -1.35);
+            group.scale.setScalar(1.2);
+            currentBlueprintLine = group;
+            scene.add(currentBlueprintLine);
+        }
+
+        // --- Parâmetros de Trabalho ---
+        let currentBrushMode = 'add'; 
+        let brushRadius = 0.5;
+        let brushStrength = 0.15;
+        let isSymmetryActive = false;
+        let isDrawing = false;
+        let touchSculptMode = 'sculpt'; 
+        let selectedColor = new THREE.Color('#ef4444');
+
+        // Roda do Torno
+        let isWheelActive = false;
+        let wheelSpeed = 1.0;
+        let lastPointerX = 0;
+        let lastPointerY = 0;
+
+        // Estado: Adicionar Forma Livre
+        let isPlacementMode = false;
+        let placementShapeType = null;
+        let placementScale = 0.4;
+        let placementPreviewMesh = null;
+
+        const raycaster = new THREE.Raycaster();
+        const mouse = new THREE.Vector2();
+
+        // --- Atualizações Visuais de Seleção de Ferramenta ---
+        function updateToolButtonsUI() {
+            const tools = ['add', 'sub', 'smooth', 'flatten', 'spatula', 'gouge', 'paint'];
+            tools.forEach(m => {
+                const btn = document.getElementById(`btn-${m}`);
+                if (!btn) return;
+                
+                if (currentBrushMode === m && !isPlacementMode) {
+                    btn.className = "flex flex-col items-center justify-center p-2 rounded-xl border border-indigo-500 bg-indigo-950/60 text-white transition scale-[1.02] shadow-lg shadow-indigo-950/40 font-semibold";
+                } else {
+                    btn.className = "flex flex-col items-center justify-center p-2 rounded-xl border border-slate-800/60 bg-slate-900/50 hover:bg-slate-800/60 text-slate-400 hover:text-slate-200 transition";
+                }
+            });
+        }
+
+        function updatePlacementButtonsUI() {
+            const shapes = ['sphere', 'cube', 'cylinder', 'torus'];
+            shapes.forEach(shape => {
+                const btn = document.getElementById(`btn-add-${shape}`);
+                if (!btn) return;
+                
+                if (isPlacementMode && placementShapeType === shape) {
+                    btn.className = "p-2 rounded-xl border border-emerald-500 bg-emerald-950/60 text-white transition scale-[1.02] shadow-lg shadow-emerald-950/40 flex flex-col items-center gap-1 text-[10px] font-bold";
+                } else {
+                    btn.className = "p-2 rounded-xl border border-slate-800/60 bg-slate-900/50 hover:bg-slate-800/60 text-slate-400 hover:text-slate-200 transition flex flex-col items-center gap-1 text-[10px] font-semibold";
+                }
+            });
+        }
+
+        function setBrushMode(mode) {
+            deactivatePlacementMode(); 
+            currentBrushMode = mode;
+            
+            updateToolButtonsUI();
+
+            const palette = document.getElementById('color-palette');
+            if (mode === 'paint') {
+                palette.classList.remove('hidden');
+                palette.classList.add('flex');
+                brushCursor.material.color.copy(selectedColor);
+            } else {
+                palette.classList.remove('flex');
+                palette.classList.add('hidden');
+                brushCursor.material.color.setHex(0x4f46e5);
+            }
+        }
+
+        updateToolButtonsUI();
+
+        // --- Ativação de Modo de Adicionar Formas Livres ---
+        function activatePlacementMode(shapeType) {
+            deactivatePlacementMode();
+            isPlacementMode = true;
+            placementShapeType = shapeType;
+
+            updateToolButtonsUI();
+            updatePlacementButtonsUI();
+
+            document.getElementById('btn-cancel-placement').classList.remove('hidden');
+
+            const geom = createGeometry(shapeType);
+            const previewMat = new THREE.MeshBasicMaterial({
+                color: 0x22d3ee,
+                wireframe: true,
+                transparent: true,
+                opacity: 0.55,
+                depthWrite: false
+            });
+            placementPreviewMesh = new THREE.Mesh(geom, previewMat);
+            
+            // CORREÇÃO: O holograma agora multiplica a escala global da malha para prever o tamanho exato na tela
+            placementPreviewMesh.scale.setScalar(placementScale * meshScale);
+            scene.add(placementPreviewMesh);
+        }
+
+        function deactivatePlacementMode() {
+            isPlacementMode = false;
+            placementShapeType = null;
+            if (placementPreviewMesh) {
+                scene.remove(placementPreviewMesh);
+                placementPreviewMesh = null;
+            }
+            document.getElementById('btn-cancel-placement').classList.add('hidden');
+            
+            controls.enabled = true;
+
+            updatePlacementButtonsUI();
+            updateToolButtonsUI();
+        }
+
+        function updateNewShapeScale() {
+            placementScale = parseFloat(document.getElementById('new-shape-scale').value);
+            document.getElementById('val-new-shape-scale').innerText = placementScale.toFixed(2);
+            if (placementPreviewMesh) {
+                // Multiplica a escala global da argila para precisão em tempo real
+                placementPreviewMesh.scale.setScalar(placementScale * meshScale);
+            }
+        }
+
+        function changePaintColor(hex, element) {
+            selectedColor.set(hex);
+            brushCursor.material.color.copy(selectedColor);
+            
+            const buttons = document.querySelectorAll('#color-palette button');
+            buttons.forEach(btn => btn.classList.replace('border-white', 'border-transparent'));
+            element.classList.replace('border-transparent', 'border-white');
+        }
+
+        function updateBrushParams() {
+            brushRadius = parseFloat(document.getElementById('brush-radius').value);
+            brushStrength = parseFloat(document.getElementById('brush-strength').value);
+            
+            document.getElementById('val-radius').innerText = brushRadius.toFixed(2);
+            document.getElementById('val-strength').innerText = brushStrength.toFixed(2);
+
+            brushCursor.scale.set(brushRadius, brushRadius, brushRadius);
+            mirrorCursor.scale.set(brushRadius, brushRadius, brushRadius);
+        }
+
+        updateBrushParams();
+
+        function toggleSymmetry() {
+            isSymmetryActive = !isSymmetryActive;
+            const indicator = document.getElementById('toggle-indicator');
+            const btn = document.getElementById('btn-symmetry');
+            
+            if (isSymmetryActive) {
+                indicator.className = "inline-block h-4 w-4 transform rounded-full bg-indigo-400 transition-transform translate-x-6";
+                btn.className = "relative inline-flex h-6 w-11 items-center rounded-full bg-indigo-950/80 border border-indigo-500/50 transition-colors focus:outline-none";
+                symmetryPlane.visible = true;
+            } else {
+                indicator.className = "inline-block h-4 w-4 transform rounded-full bg-slate-400 transition-transform translate-x-1";
+                btn.className = "relative inline-flex h-6 w-11 items-center rounded-full bg-slate-800 transition-colors focus:outline-none";
+                symmetryPlane.visible = false;
+                mirrorCursor.visible = false;
+            }
+        }
+
+        function togglePotteryWheel() {
+            isWheelActive = !isWheelActive;
+            const indicator = document.getElementById('wheel-indicator');
+            const btn = document.getElementById('btn-wheel');
+            const controlsDiv = document.getElementById('wheel-controls');
+            
+            if (isWheelActive) {
+                indicator.className = "inline-block h-4 w-4 transform rounded-full bg-indigo-400 transition-transform translate-x-6";
+                btn.className = "relative inline-flex h-6 w-11 items-center rounded-full bg-indigo-950/80 border border-indigo-500/50 transition-colors focus:outline-none";
+                controlsDiv.classList.remove('hidden');
+                controlsDiv.classList.add('flex');
+            } else {
+                indicator.className = "inline-block h-4 w-4 transform rounded-full bg-slate-400 transition-transform translate-x-1";
+                btn.className = "relative inline-flex h-6 w-11 items-center rounded-full bg-slate-800 transition-colors focus:outline-none";
+                controlsDiv.classList.remove('flex');
+                controlsDiv.classList.add('hidden');
+            }
+        }
+
+        function updateWheelSpeed() {
+            wheelSpeed = parseFloat(document.getElementById('wheel-speed').value);
+            document.getElementById('val-wheel-speed').innerText = `${wheelSpeed.toFixed(2)}x`;
+        }
+
+        function setTouchMode(mode) {
+            touchSculptMode = mode;
+            const btnSculpt = document.getElementById('btn-touch-sculpt');
+            const btnCamera = document.getElementById('btn-touch-camera');
+
+            if (mode === 'sculpt') {
+                btnSculpt.className = "px-3.5 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 bg-indigo-500 text-white";
+                btnCamera.className = "px-3.5 py-1.5 rounded-lg text-xs font-bold text-slate-400 transition flex items-center gap-1.5";
+                controls.mouseButtons.LEFT = null; 
+            } else {
+                btnSculpt.className = "px-3.5 py-1.5 rounded-lg text-xs font-bold text-slate-400 transition flex items-center gap-1.5";
+                btnCamera.className = "px-3.5 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 bg-indigo-500 text-white";
+                controls.mouseButtons.LEFT = THREE.MOUSE.ROTATE; 
+            }
+        }
+
+        // --- Borrifador de Água (Global Smooth) ---
+        function sprayWater() {
+            if (!sculptureMesh) return;
+            
+            clayGroup.traverse(child => {
+                if (child.isMesh && child.userData.isClay) {
+                    const positionAttribute = child.geometry.attributes.position;
+                    const count = positionAttribute.count;
+                    const tempPositions = [];
+                    const step = 40; 
+
+                    for (let i = 0; i < count; i++) {
+                        const currentVec = new THREE.Vector3().fromBufferAttribute(positionAttribute, i);
+                        let sumVec = new THREE.Vector3().copy(currentVec);
+                        let sampleCount = 1;
+
+                        const neighbors = [i - 1, i + 1, i - step, i + step];
+                        neighbors.forEach(n => {
+                            if (n >= 0 && n < count) {
+                                const neighborVec = new THREE.Vector3().fromBufferAttribute(positionAttribute, n);
+                                sumVec.add(neighborVec);
+                                sampleCount++;
+                            }
+                        });
+
+                        sumVec.divideScalar(sampleCount);
+                        tempPositions.push(sumVec);
+                    }
+
+                    for (let i = 0; i < count; i++) {
+                        const currentVec = new THREE.Vector3().fromBufferAttribute(positionAttribute, i);
+                        currentVec.lerp(tempPositions[i], 0.35);
+                        positionAttribute.setXYZ(i, currentVec.x, currentVec.y, currentVec.z);
+                    }
+
+                    positionAttribute.needsUpdate = true;
+                    child.geometry.computeVertexNormals();
+                }
+            });
+
+            saveHistoryState();
+        }
+
+        // --- Forno de Queima térmica e Vitrificação ---
+        function fireKiln() {
+            if (!sculptureMesh) return;
+
+            const btn = document.getElementById('btn-fire-kiln');
+            btn.disabled = true;
+
+            const targetEmissive = new THREE.Color(0xff4500); 
+
+            let progress = 0;
+            const duration = 2000; 
+            const startTime = performance.now();
+
+            const materialsToAnimate = [];
+            clayGroup.traverse(child => {
+                if (child.isMesh && child.userData.isClay) {
+                    materialsToAnimate.push(child.material);
+                }
+            });
+
+            const originalEmissives = materialsToAnimate.map(m => m.emissive.clone());
+
+            function animateHeat(time) {
+                const elapsed = time - startTime;
+                progress = Math.min(elapsed / duration, 1);
+
+                for (let i = 0; i < materialsToAnimate.length; i++) {
+                    const mat = materialsToAnimate[i];
+                    const orig = originalEmissives[i];
+                    if (progress < 0.5) {
+                        mat.emissive.lerpColors(orig, targetEmissive, progress * 2);
+                    } else {
+                        mat.emissive.lerpColors(targetEmissive, orig, (progress - 0.5) * 2);
+                    }
+                }
+
+                if (progress < 1) {
+                    requestAnimationFrame(animateHeat);
+                } else {
+                    for (let i = 0; i < materialsToAnimate.length; i++) {
+                        const mat = materialsToAnimate[i];
+                        mat.emissive.copy(originalEmissives[i]);
+                        mat.roughness = 0.12; 
+                        mat.metalness = 0.15;
+                    }
+                    btn.disabled = false;
+                }
+            }
+
+            requestAnimationFrame(animateHeat);
+        }
+
+        // --- Adicionar Alças Sétricas Curvas ---
+        function attachSymmetricalHandles(saveHistory = true) {
+            if (!sculptureMesh) return;
+
+            if (handleLeftMesh) sculptureMesh.remove(handleLeftMesh);
+            if (handleRightMesh) sculptureMesh.remove(handleRightMesh);
+
+            const handleGeo = new THREE.TorusGeometry(0.35, 0.07, 12, 24, Math.PI);
+            const handleMat = sculptureMesh.material; 
+
+            handleLeftMesh = new THREE.Mesh(handleGeo, handleMat);
+            handleLeftMesh.position.set(-0.8, 1.2, 0);
+            handleLeftMesh.rotation.set(0, 0, Math.PI / 2); 
+            handleLeftMesh.castShadow = true;
+            handleLeftMesh.receiveShadow = true;
+            sculptureMesh.add(handleLeftMesh);
+
+            handleRightMesh = new THREE.Mesh(handleGeo, handleMat);
+            handleRightMesh.position.set(0.8, 1.2, 0);
+            handleRightMesh.rotation.set(0, 0, -Math.PI / 2);
+            handleRightMesh.castShadow = true;
+            handleRightMesh.receiveShadow = true;
+            sculptureMesh.add(handleRightMesh);
+
+            if (saveHistory) {
+                saveHistoryState();
+            }
+        }
+
+        // --- Lógica de Escultura Tridimensional ---
+        function handleInteraction(clientX, clientY) {
+            lastPointerX = clientX;
+            lastPointerY = clientY;
+
+            mouse.x = (clientX / window.innerWidth) * 2 - 1;
+            mouse.y = -(clientY / window.innerHeight) * 2 + 1;
+
+            raycaster.setFromCamera(mouse, camera);
+            
+            // Intercepta colisões contra o grupo unificado de argila
+            const intersects = raycaster.intersectObjects(clayGroup.children, true);
+            const clayIntersects = intersects.filter(hit => hit.object.userData.isClay);
+
+            if (clayIntersects.length > 0) {
+                const hit = clayIntersects[0];
+                const hitPoint = hit.point;
+                const hitNormal = hit.face.normal.clone().applyMatrix4(hit.object.matrixWorld).normalize();
+
+                if (isPlacementMode) {
+                    controls.enabled = false;
+
+                    brushCursor.visible = false;
+                    mirrorCursor.visible = false;
+                    
+                    if (placementPreviewMesh) {
+                        placementPreviewMesh.position.copy(hitPoint);
+                        const up = new THREE.Vector3(0, 1, 0);
+                        placementPreviewMesh.quaternion.setFromUnitVectors(up, hitNormal);
+                        placementPreviewMesh.visible = true;
+                    }
+                } else {
+                    brushCursor.position.copy(hitPoint);
+                    brushCursor.visible = true;
+
+                    if (isSymmetryActive) {
+                        const mirrorPoint = hitPoint.clone();
+                        mirrorPoint.x = -mirrorPoint.x;
+                        mirrorCursor.position.copy(mirrorPoint);
+                        mirrorCursor.visible = true;
+                    } else {
+                        mirrorCursor.visible = false;
+                    }
+
+                    if (isDrawing) {
+                        sculptMeshAtPoint(hitPoint, hitNormal, false);
+                        if (isSymmetryActive) {
+                            const mirrorPoint = hitPoint.clone();
+                            mirrorPoint.x = -mirrorPoint.x;
+                            const mirrorNormal = hitNormal.clone();
+                            mirrorNormal.x = -mirrorNormal.x;
+                            sculptMeshAtPoint(mirrorPoint, mirrorNormal, true);
+                        }
+
+                        clayGroup.traverse(child => {
+                            if (child.isMesh && child.userData.isClay) {
+                                child.geometry.attributes.position.needsUpdate = true;
+                                if (child.geometry.attributes.color) {
+                                    child.geometry.attributes.color.needsUpdate = true;
+                                }
+                                child.geometry.computeVertexNormals();
+                            }
+                        });
+                    }
+                }
+            } else {
+                brushCursor.visible = false;
+                mirrorCursor.visible = false;
+                if (placementPreviewMesh) {
+                    placementPreviewMesh.visible = false;
+                }
+                if (isPlacementMode) {
+                    controls.enabled = true;
+                }
+            }
+        }
+
+        function sculptMeshAtPoint(centerPoint, normalDir, isMirrored = false) {
+            let averageHeight = 0;
+            let countInRadius = 0;
+            const spatulaCenterRadius = Math.sqrt(centerPoint.x * centerPoint.x + centerPoint.z * centerPoint.z);
+
+            if (currentBrushMode === 'flatten') {
+                clayGroup.traverse(child => {
+                    if (child.isMesh && child.userData.isClay) {
+                        const pos = child.geometry.attributes.position;
+                        const v = new THREE.Vector3();
+                        const tv = new THREE.Vector3();
+                        for (let i = 0; i < pos.count; i++) {
+                            v.fromBufferAttribute(pos, i);
+                            tv.copy(v).applyMatrix4(child.matrixWorld);
+                            const distance = tv.distanceTo(centerPoint);
+                            if (distance < brushRadius) {
+                                averageHeight += tv.dot(normalDir);
+                                countInRadius++;
+                            }
+                        }
+                    }
+                });
+                if (countInRadius > 0) averageHeight /= countInRadius;
+                else averageHeight = centerPoint.dot(normalDir);
+            }
+
+            clayGroup.traverse(child => {
+                if (child.isMesh && child.userData.isClay) {
+                    const positionAttribute = child.geometry.attributes.position;
+                    const colorAttribute = child.geometry.attributes.color;
+                    const vertex = new THREE.Vector3();
+                    const tempVector = new THREE.Vector3();
+                    let changed = false;
+
+                    for (let i = 0; i < positionAttribute.count; i++) {
+                        vertex.fromBufferAttribute(positionAttribute, i);
+                        tempVector.copy(vertex).applyMatrix4(child.matrixWorld);
+                        const distance = tempVector.distanceTo(centerPoint);
+
+                        if (distance < brushRadius) {
+                            const falloff = Math.pow(1 - (distance / brushRadius), 1.8);
+                            let effectIntensity = brushStrength * falloff * 0.12;
+
+                            if (currentBrushMode === 'add') {
+                                tempVector.addScaledVector(normalDir, effectIntensity);
+                            } 
+                            else if (currentBrushMode === 'sub') {
+                                tempVector.addScaledVector(normalDir, -effectIntensity);
+                            } 
+                            else if (currentBrushMode === 'smooth') {
+                                const target = tempVector.clone().lerp(centerPoint, effectIntensity * 0.8);
+                                tempVector.copy(target);
+                            } 
+                            else if (currentBrushMode === 'flatten') {
+                                const currentProj = tempVector.dot(normalDir);
+                                const difference = averageHeight - currentProj;
+                                tempVector.addScaledVector(normalDir, difference * effectIntensity * 2.0);
+                            }
+                            else if (currentBrushMode === 'spatula') {
+                                const vertexRadius = Math.sqrt(tempVector.x * tempVector.x + tempVector.z * tempVector.z);
+                                if (vertexRadius > spatulaCenterRadius && vertexRadius > 0.01) {
+                                    const targetRadius = THREE.MathUtils.lerp(vertexRadius, spatulaCenterRadius, effectIntensity * 3.5);
+                                    const scaleFactor = targetRadius / vertexRadius;
+                                    tempVector.x *= scaleFactor;
+                                    tempVector.z *= scaleFactor;
+                                }
+                            }
+                            else if (currentBrushMode === 'gouge') {
+                                const radialDir = new THREE.Vector3(tempVector.x, 0, tempVector.z).normalize();
+                                tempVector.addScaledVector(radialDir, effectIntensity * 1.2);
+                                tempVector.y -= effectIntensity * 1.8;
+                                if (tempVector.y < -1.35) tempVector.y = -1.35;
+                            }
+                            else if (currentBrushMode === 'paint' && colorAttribute) {
+                                const r = THREE.MathUtils.lerp(colorAttribute.getX(i), selectedColor.r, falloff * brushStrength * 1.5);
+                                const g = THREE.MathUtils.lerp(colorAttribute.getY(i), selectedColor.g, falloff * brushStrength * 1.5);
+                                const b = THREE.MathUtils.lerp(colorAttribute.getZ(i), selectedColor.b, falloff * brushStrength * 1.5);
+                                colorAttribute.setXYZ(i, r, g, b);
+                            }
+
+                            if (currentBrushMode !== 'paint') {
+                                tempVector.applyMatrix4(child.matrixWorld.clone().invert());
+                                positionAttribute.setXYZ(i, tempVector.x, tempVector.y, tempVector.z);
+                                changed = true;
+                            }
+                        }
+                    }
+
+                    if (changed) {
+                        positionAttribute.needsUpdate = true;
+                        child.geometry.computeVertexNormals();
+                    }
+                }
+            });
+        }
+
+        // --- Eventos Físicos de Pointer Unificados ---
+
+        function onPointerDown(e) {
+            if (e.target !== renderer.domElement) {
+                return;
+            }
+
+            // Intercepta e executa o clique de colagem no Modo Adicionar Forma Livre
+            if (isPlacementMode) {
+                mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
+                mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
+                raycaster.setFromCamera(mouse, camera);
+                const intersects = raycaster.intersectObjects(clayGroup.children, true);
+                const clayIntersects = intersects.filter(hit => hit.object.userData.isClay);
+
+                if (clayIntersects.length > 0) {
+                    const hit = clayIntersects[0];
+                    const hitPoint = hit.point;
+                    const hitNormal = hit.face.normal.clone().applyMatrix4(hit.object.matrixWorld).normalize();
+
+                    // Instancia a nova forma livre física
+                    const geom = createGeometry(placementShapeType);
+                    
+                    const positionAttribute = geom.attributes.position;
+                    if (positionAttribute) {
+                        const colors = [];
+                        for (let i = 0; i < positionAttribute.count; i++) {
+                            colors.push(1, 1, 1);
+                        }
+                        geom.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+                    }
+
+                    const newMesh = new THREE.Mesh(geom, currentMaterial);
+                    newMesh.castShadow = true;
+                    newMesh.receiveShadow = true;
+                    newMesh.userData.isClay = true;
+                    newMesh.userData.type = 'sub-shape';
+                    newMesh.geometryType = placementShapeType;
+
+                    newMesh.scale.setScalar(placementScale);
+                    newMesh.position.copy(hitPoint);
+                    
+                    // Traduz coordenadas de tela absoluta para dentro do clayGroup do torno rotativo
+                    newMesh.position.applyMatrix4(clayGroup.matrixWorld.clone().invert());
+
+                    // Alinha rotação com a normal da face clicada considerando a rotação e escala do grupo
+                    const up = new THREE.Vector3(0, 1, 0);
+                    const targetQuat = new THREE.Quaternion().setFromUnitVectors(up, hitNormal);
+                    newMesh.quaternion.copy(targetQuat);
+                    
+                    const clayWorldQuat = new THREE.Quaternion();
+                    clayGroup.getWorldQuaternion(clayWorldQuat);
+                    newMesh.quaternion.premultiply(clayWorldQuat.invert());
+
+                    clayGroup.add(newMesh);
+
+                    saveHistoryState();
+                    deactivatePlacementMode(); 
+                }
+                return;
+            }
+
+            if (e.pointerType === 'touch' && touchSculptMode === 'camera') {
+                return;
+            }
+
+            if (e.button === 0 || e.pointerType === 'touch' || e.pointerType === 'pen') {
+                mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
+                mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
+                raycaster.setFromCamera(mouse, camera);
+                const intersects = raycaster.intersectObjects(clayGroup.children, true);
+                const clayIntersects = intersects.filter(hit => hit.object.userData.isClay);
+
+                if (clayIntersects.length > 0) {
+                    isDrawing = true;
+                    controls.enabled = false; 
+                    handleInteraction(e.clientX, e.clientY);
+                }
+            }
+        }
+
+        function onPointerMove(e) {
+            if (e.pointerType === 'touch' && touchSculptMode === 'camera') {
+                return;
+            }
+            handleInteraction(e.clientX, e.clientY);
+        }
+
+        function onPointerUp(e) {
+            if (isDrawing) {
+                isDrawing = false;
+                controls.enabled = true; 
+                saveHistoryState();
+            }
+        }
+
+        renderer.domElement.addEventListener('pointerdown', onPointerDown);
+        renderer.domElement.addEventListener('pointermove', onPointerMove);
+        window.addEventListener('pointerup', onPointerUp);
+
+        // Responsividade
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        // --- Exportação de Todos os Objetos Unidos para um único arquivo .OBJ ---
+        function exportToOBJ() {
+            let objText = `# ClayStudio 3D Pro - Exported Sculpt\n`;
+            let globalVertexCount = 0;
+
+            clayGroup.traverse(child => {
+                if (child.isMesh && child.userData.isClay) {
+                    const positions = child.geometry.attributes.position;
+                    const normals = child.geometry.attributes.normal;
+                    const indices = child.geometry.index;
+
+                    objText += `g objeto_argila_${child.geometryType || 'sub'}_${child.uuid.substring(0,8)}\n`;
+
+                    const vertex = new THREE.Vector3();
+                    const normal = new THREE.Vector3();
+
+                    for (let i = 0; i < positions.count; i++) {
+                        vertex.fromBufferAttribute(positions, i);
+                        vertex.applyMatrix4(child.matrixWorld);
+                        objText += `v ${vertex.x.toFixed(5)} ${vertex.y.toFixed(5)} ${vertex.z.toFixed(5)}\n`;
+                    }
+
+                    if (normals) {
+                        for (let i = 0; i < normals.count; i++) {
+                            normal.fromBufferAttribute(normals, i);
+                            normal.transformDirection(child.matrixWorld);
+                            objText += `vn ${normal.x.toFixed(4)} ${normal.y.toFixed(4)} ${normal.z.toFixed(4)}\n`;
+                        }
+                    }
+
+                    objText += `\n`;
+
+                    if (indices) {
+                        for (let i = 0; i < indices.count; i += 3) {
+                            const a = indices.getX(i) + 1 + globalVertexCount;
+                            const b = indices.getX(i + 1) + 1 + globalVertexCount;
+                            const c = indices.getX(i + 2) + 1 + globalVertexCount;
+                            objText += `f ${a}//${a} ${b}//${b} ${c}//${c}\n`;
+                        }
+                    } else {
+                        for (let i = 1; i <= positions.count; i += 3) {
+                            const a = i + globalVertexCount;
+                            const b = i + 1 + globalVertexCount;
+                            const c = i + 2 + globalVertexCount;
+                            objText += `f ${a}//${a} ${b}//${b} ${c}//${c}\n`;
+                        }
+                    }
+
+                    globalVertexCount += positions.count;
+                    objText += `\n`;
+                }
+            });
+
+            const blob = new Blob([objText], { type: 'text/plain' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = `escultura-pottery-${Date.now()}.obj`;
+            link.click();
+        }
+
+        // --- Loop Principal de Animação ---
+        function animate() {
+            requestAnimationFrame(animate);
+
+            if (isWheelActive) {
+                const speedFactor = wheelSpeed * 0.015;
+                wheelGroup.rotation.y += speedFactor;
+
+                if (isDrawing) {
+                    handleInteraction(lastPointerX, lastPointerY);
+                }
+            }
+
+            controls.update();
+            renderer.render(scene, camera);
+        }
+
+        window.onload = function() {
+            animate();
+            if (window.innerWidth < 1024) {
+                setTouchMode('sculpt');
+            } else {
+                document.getElementById('mobile-mode-container').style.display = 'none';
+            }
+        };
+    </script>
+</body>
+</html>

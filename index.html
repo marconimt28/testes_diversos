@@ -1,125 +1,79 @@
 <!DOCTYPE html>
-<html lang="pt-BR">
-
+<html lang="pt-br">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ALDO LUNA | Fotografia de Cultura e Memória</title>
-
-    <!-- Dependências externas via CDN -->
+    <title>Meus Projetos | Marconi Maciel</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&display=swap" rel="stylesheet">
-
-    <!-- Estilos do projeto -->
-    <link rel="stylesheet" href="style.css">
+    <style>
+        .gradient-bg {
+            background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+        }
+        .card-hover:hover {
+            transform: translateY(-5px);
+            transition: all 0.3s ease;
+        }
+    </style>
 </head>
+<body class="gradient-bg min-h-screen text-slate-800 font-sans">
 
-<body class="relative w-screen h-screen select-none">
+    <div class="container mx-auto px-4 py-12">
+        <header class="text-center mb-16">
+            <h1 class="text-4xl font-extrabold text-slate-900 mb-2">Meus Projetos</h1>
+            <p class="text-lg text-slate-600">Olá, família! Aqui estão algumas das minhas criações digitais para vocês explorarem.</p>
+        </header>
 
-    <!-- Efeito de Vinheta Cinematográfica -->
-    <div class="vignette"></div>
+        <main class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <!-- Os links agora abrem em uma nova aba -->
+            <a href="album.html" target="_blank" rel="noopener noreferrer" class="bg-white p-6 rounded-xl shadow-md card-hover block border-l-4 border-blue-500">
+                <h2 class="text-xl font-bold mb-2">Álbum</h2>
+                <p class="text-slate-500 text-sm">Visualizador de memórias.</p>
+            </a>
 
-    <!-- Container do Canvas 3D (preenchido pelo Three.js) -->
-    <div id="canvas-container" class="w-full h-full absolute inset-0 z-0"></div>
+            <a href="drone.html" target="_blank" rel="noopener noreferrer" class="bg-white p-6 rounded-xl shadow-md card-hover block border-l-4 border-sky-500">
+                <h2 class="text-xl font-bold mb-2">Drone</h2>
+                <p class="text-slate-500 text-sm">Simulação e controle.</p>
+            </a>
 
-    <!-- Dica de Hover (aparece ao passar sobre um quadro) -->
-    <div id="hover-hint"
-        class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-20 pointer-events-none opacity-0">
-        <div class="bg-black/60 backdrop-blur-sm text-white text-xs px-4 py-2 rounded-full flex items-center gap-2">
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2"
-                stroke="currentColor" class="w-3.5 h-3.5">
-                <path stroke-linecap="round" stroke-linejoin="round"
-                    d="M15.042 21.672L13.684 16.6m0 0l-2.51 2.225.569-9.47 5.227 7.917-3.286-.672zM12 2.25V4.5m5.834.166l-1.591 1.591M20.25 10.5H18M7.757 14.743l-1.59 1.59M6 10.5H3.75m4.007-4.243l-1.59-1.59" />
-            </svg>
-            Clique para ver detalhes
-        </div>
+            <a href="drone_2.html" target="_blank" rel="noopener noreferrer" class="bg-white p-6 rounded-xl shadow-md card-hover block border-l-4 border-sky-600">
+                <h2 class="text-xl font-bold mb-2">Drone (Versão 2)</h2>
+                <p class="text-slate-500 text-sm">Aprimoramentos de interface.</p>
+            </a>
+
+            <a href="galeria_1.html" target="_blank" rel="noopener noreferrer" class="bg-white p-6 rounded-xl shadow-md card-hover block border-l-4 border-emerald-500">
+                <h2 class="text-xl font-bold mb-2">Galeria</h2>
+                <p class="text-slate-500 text-sm">Exposição fotográfica.</p>
+            </a>
+
+            <a href="manequim3D.html" target="_blank" rel="noopener noreferrer" class="bg-white p-6 rounded-xl shadow-md card-hover block border-l-4 border-purple-500">
+                <h2 class="text-xl font-bold mb-2">Manequim 3D</h2>
+                <p class="text-slate-500 text-sm">Modelagem tridimensional.</p>
+            </a>
+
+            <a href="manequim3D_1.html" target="_blank" rel="noopener noreferrer" class="bg-white p-6 rounded-xl shadow-md card-hover block border-l-4 border-purple-600">
+                <h2 class="text-xl font-bold mb-2">Manequim 3D (V1)</h2>
+                <p class="text-slate-500 text-sm">Primeira versão técnica.</p>
+            </a>
+
+            <a href="mine.html" target="_blank" rel="noopener noreferrer" class="bg-white p-6 rounded-xl shadow-md card-hover block border-l-4 border-amber-500">
+                <h2 class="text-xl font-bold mb-2">Mine</h2>
+                <p class="text-slate-500 text-sm">Projeto inspirado em blocos.</p>
+            </a>
+
+            <a href="mine_2.html" target="_blank" rel="noopener noreferrer" class="bg-white p-6 rounded-xl shadow-md card-hover block border-l-4 border-amber-600">
+                <h2 class="text-xl font-bold mb-2">Mine (Versão 2)</h2>
+                <p class="text-slate-500 text-sm">Expansão de funcionalidades.</p>
+            </a>
+
+            <a href="claystudio3D.html" target="_blank" rel="noopener noreferrer" class="bg-white p-6 rounded-xl shadow-md card-hover block border-l-4 border-rose-500">
+                <h2 class="text-xl font-bold mb-2">Clay Studio 3D</h2>
+                <p class="text-slate-500 text-sm">Estúdio criativo virtual.</p>
+            </a>
+        </main>
+
+        <footer class="mt-20 text-center text-slate-400 text-sm">
+            &copy; 2026 Marconi Maciel - Criado com carinho para a família.
+        </footer>
     </div>
-
-    <!-- Cabeçalho com título e instruções -->
-    <header
-        class="absolute inset-x-0 top-0 p-6 flex flex-col md:flex-row justify-between items-start md:items-center z-20 pointer-events-none">
-        <div>
-            <h1 class="text-white text-2xl md:text-3xl font-bold tracking-wider drop-shadow-sm">ALDO LUNA | Fotografia
-                de Cultura e Memória</h1>
-            <p class="text-white text-xs md:text-sm mt-1">Cada imagem é um convite ao encontro entre memória, terrtório
-                e imaginação.</p>
-        </div>
-        <div
-            class="bg-white/80 backdrop-blur-md px-4 py-2 rounded-xl border border-slate-200 mt-4 md:mt-0 max-w-sm shadow-sm">
-            <p class="text-slate-800 text-xs font-semibold flex items-center gap-2">
-                <span class="inline-block bg-slate-200 px-2 py-0.5 rounded text-[10px]">W / S</span> ou
-                <span class="inline-block bg-slate-200 px-2 py-0.5 rounded text-[10px]">↑ / ↓</span>
-                Caminhar pelo corredor
-            </p>
-            <p class="text-slate-500 text-[11px] mt-1">Scroll do mouse ou clique/toque nos quadros para interagir.</p>
-        </div>
-    </header>
-
-    <!-- Painel de Informações da Obra -->
-    <aside id="art-panel"
-        class="absolute bottom-6 left-6 right-6 md:left-12 md:max-w-[260px] min-h-[380px] flex flex-col justify-between bg-white/95 backdrop-blur-xl border border-slate-200/80 rounded-2xl p-5 text-slate-800 z-20 pointer-events-auto shadow-2xl">
-        <div class="flex justify-between items-start mb-3 gap-2">
-            <div>
-                <span
-                    class="text-[10px] uppercase tracking-widest font-bold text-emerald-600 bg-emerald-500/10 px-2.5 py-1 rounded-full">Exposição
-                    Ativa</span>
-                <h2 id="art-title" class="text-lg md:text-xl font-bold mt-3 text-slate-900 leading-tight">Título da Obra
-                </h2>
-                <p id="art-author" class="text-slate-500 text-sm italic mt-1">Artista Convidado, 2025</p>
-            </div>
-            <button id="btn-close"
-                class="bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-full p-2 transition-colors duration-200 flex-shrink-0"
-                aria-label="Fechar painel">
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2"
-                    stroke="currentColor" class="w-5 h-5">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
-                </svg>
-            </button>
-        </div>
-        <p id="art-desc" class="text-slate-600 text-xs md:text-sm leading-relaxed mb-5">Descrição abstrata da obra
-            selecionada.</p>
-        <div class="flex gap-3">
-            <button id="btn-back"
-                class="flex-1 py-2.5 px-4 bg-slate-900 hover:bg-slate-800 text-white font-semibold text-xs rounded-lg transition-all duration-300 transform active:scale-95 flex items-center justify-center gap-2 shadow-sm">
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2"
-                    stroke="currentColor" class="w-4 h-4">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M9 15L3 9m0 0l6-6M3 9h12a6 6 0 010 12h-3" />
-                </svg>
-                Voltar ao Corredor
-            </button>
-        </div>
-    </aside>
-
-    <!-- Controles de Toque (visível apenas em telas menores) -->
-    <nav class="absolute bottom-6 right-6 flex flex-col gap-2 z-20 pointer-events-auto md:hidden"
-        aria-label="Controles de navegação">
-        <button id="btn-up" class="mobile-btn" aria-label="Avançar pelo corredor">
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="3"
-                stroke="currentColor" class="w-6 h-6">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M4.5 15.75l7.5-7.5 7.5 7.5" />
-            </svg>
-        </button>
-        <button id="btn-down" class="mobile-btn" aria-label="Voltar pelo corredor">
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="3"
-                stroke="currentColor" class="w-6 h-6">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
-            </svg>
-        </button>
-    </nav>
-
-    <!-- Tela de Carregamento -->
-    <div id="loader" class="absolute inset-0 bg-white z-50 flex flex-col items-center justify-center">
-        <div class="flex flex-col items-center">
-            <div class="loader-spinner"></div>
-            <p class="text-slate-800 text-sm tracking-widest uppercase mt-4 font-semibold loader-text">Carregando
-                Texturas...</p>
-        </div>
-    </div>
-
-    <!-- Lógica do projeto -->
-    <script src="app.js"></script>
 </body>
-
 </html>
