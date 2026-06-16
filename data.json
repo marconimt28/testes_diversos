@@ -1,0 +1,61 @@
+[
+    {
+        "id": "art-l1",
+        "title": "Vórtice Cromático I",
+        "author": "Marconi Maciel",
+        "desc": "Esta pintura explora a turbulência das emoções primárias através de pinceladas caóticas e uma paleta de alto contraste. O centro atrai o olhar do observador para um abismo de luz quente.",
+        "side": "left",
+        "posZ": -8,
+        "image": "assets/img/obra_1.png"
+    },
+    {
+        "id": "art-l2",
+        "title": "Silêncio Geométrico",
+        "author": "Elena Rostova",
+        "desc": "Um estudo sobre o equilíbrio e o minimalismo espacial. As formas retas representam a estabilidade industrial face ao desordenado fluxo da natureza contemporânea.",
+        "side": "left",
+        "posZ": -18,
+        "style": "geometric",
+        "image": "assets/img/obra_2.png"
+    },
+    {
+        "id": "art-l3",
+        "title": "Líquido em Suspensão",
+        "author": "Jean-Pierre Blanc",
+        "desc": "Fluidez capturada no tempo. Elementos que se assemelham a fluidos biológicos dançam em um fundo etéreo e escuro, sugerindo o mistério microscópico da vida celular.",
+        "side": "left",
+        "posZ": -28,
+        "style": "fluid",
+        "image": "assets/img/obra_3.png"
+    },
+    {
+        "id": "art-r1",
+        "title": "Metrópole de Neon",
+        "author": "Takashi Sato",
+        "desc": "Inspirada no reflexo das luzes de Tóquio sob a chuva. Uma fusão de distorções ópticas digitais e expressionismo abstrato clássico em tons neon e azul profundo.",
+        "side": "right",
+        "posZ": -8,
+        "style": "neon",
+        "image": "assets/img/obra_4.png"
+    },
+    {
+        "id": "art-r2",
+        "title": "Horizonte Fragmentado",
+        "author": "Clara Mendes",
+        "desc": "A desconstrução da paisagem marítima. A linha clássica do horizonte é quebrada por interferências de cores sólidas e texturas espessas feitas com espátula.",
+        "side": "right",
+        "posZ": -18,
+        "style": "horizon",
+        "image": "assets/img/obra_5.png"
+    },
+    {
+        "id": "art-r3",
+        "title": "Entropia Solar",
+        "author": "Marcus Vance",
+        "desc": "O calor cósmico transformado em arte física. Esta peça vibra em tons dourados e vermelhos rústicos, simbolizando a liberação infinita de energia solar no vácuo.",
+        "side": "right",
+        "posZ": -28,
+        "style": "solar",
+        "image": "assets/img/obra_6.png"
+    }
+]
